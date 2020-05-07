@@ -1,0 +1,18 @@
+{
+  "name": "konza-pizza-management",
+  "productName": "Konza Pizza Management",
+  "version": "1.1.0",
+  "description": "Konza Pizza Management",
+  "main": "./main.prod.js",
+  "author": {
+    "name": "MaddoxDevelopment",
+    "email": "jm@madev.me",
+    "url": "https://github.com/electron-react-boilerplate"
+  },
+  "scripts": {
+    "electron-rebuild": "node -r ../internals/scripts/BabelRegister.js ../internals/scripts/ElectronRebuild.js",
+    "postinstall": "yarn electron-rebuild"
+  },
+  "license": "MIT",
+  "dependencies": {}
+}
