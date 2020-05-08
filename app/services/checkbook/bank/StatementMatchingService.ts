@@ -1,5 +1,6 @@
 import {BankStatementEntry} from "../../../entities/checkbook/BankStatementEntry";
 import {CheckbookEntry} from "../../../entities/checkbook/CheckbookEntry";
+import {stringToDate, timestamp} from "../../../utils/dateUtil";
 
 export interface StatementMatch {
   entries : CheckbookEntry[],
@@ -11,7 +12,7 @@ export class StatementMatchingService {
 
   constructor(private readonly statement : BankStatementEntry[], private readonly entries : CheckbookEntry[]) {
     this.entries = this.entries.sort((a, b) => a.timestamp
-     - b.timestamp);
+      - b.timestamp);
   }
 
   private singleMatches : any = {};
@@ -161,23 +162,20 @@ export class StatementMatchingService {
   }
 
   private inRange = (entry : CheckbookEntry, statement : BankStatementEntry, days : number) => {
-    if((entry.credit === 97.05 || entry.debit === 97.05) && statement.description.includes("DOP")) {
-      //debugger;
-    }
-    const statementTime = new Date(statement.date);
+    const statementTime = stringToDate(statement.date)
     statementTime.setHours(0);
     statementTime.setMinutes(1);
     statementTime.setSeconds(0);
     statementTime.setMilliseconds(0);
-    const statementTimeStamp = statementTime.getTime();
+    const statementTimeStamp = timestamp(statementTime)
     const epoch7 = statementTimeStamp - (1000 * 60 * 60 * 24 * days);
     const entryDate = new Date(entry.timestamp);
-    entryDate.setMonth(entryDate.getMonth() - 1);
+    entryDate.setMonth(entryDate.getMonth());
     entryDate.setHours(0);
     entryDate.setMinutes(0);
     entryDate.setSeconds(0);
     entryDate.setMilliseconds(0);
-    const entryStamp = entryDate.getTime();
+    const entryStamp = timestamp(entryDate);
     return entryStamp <= statementTimeStamp && entryStamp >= epoch7;
   };
 
@@ -224,7 +222,7 @@ export class StatementMatchingService {
     let entries = match.entries;
 
     if(desc.includes("american express")) {
-       entries = entries.filter(w => w.payee.toLowerCase().includes("amex") || w.payee.toLowerCase().includes("cc"))
+      entries = entries.filter(w => w.payee.toLowerCase().includes("amex") || w.payee.toLowerCase().includes("cc"))
     }
     if(desc.includes("dopgc")) {
       entries = entries.filter(w => !w.payee.toLowerCase().includes("cc"))
