@@ -7,6 +7,7 @@ import {Event, registerRendererOnce} from "../events/events";
 import { ImportMoneyFile } from '../components/ImportMoneyFile';
 import {CheckbookAccounts} from "../components/CheckbookAccounts";
 import { ImportBankStatement } from '../components/ImportBankStatement';
+import { ImportPayrollStatement } from '../components/ImportPayrollStatement';
 
 const Root =() => {
 
@@ -28,6 +29,7 @@ const Root =() => {
         <Route path={"/checkbook/:id"} exact component={Checkbook} />
         <Route path={"/import"} exact component={ImportMoneyFile} />
         <Route path={"/import/bank"} component={ImportBankStatement} />
+        <Route path={"/import/payroll"} component={ImportPayrollStatement} />
       </div>
     </div>
   </HashRouter>

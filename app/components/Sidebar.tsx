@@ -19,6 +19,7 @@ export function Sidebar() {
         <li><Link to={"/checkbook"}>Checkbook</Link></li>
         <li><Link to={"/import"}>Import Money File</Link></li>
         <li><Link to={"/import/bank"}>Import Bank Statement</Link></li>
+        <li><Link to={"/import/payroll"}>Import Payroll Statement</Link></li>
       </ul>
     </aside>
   )
