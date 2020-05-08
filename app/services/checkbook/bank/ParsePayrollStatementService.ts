@@ -1,81 +1,128 @@
-import { Employee } from '../../../entities/checkbook/Employee';
+import {Employee, PayrollParseResult} from '../../../entities/checkbook/Employee';
+import {getFloat, isAmount} from "./ParseBankStatementService";
+
+enum State {
+  None,
+  EmployeeNumber,
+  Name,
+  SSN,
+  Department,
+  Gross,
+  Deduction,
+  Net,
+  CheckNumber
+}
 
 export class ParsePayrollStatementService {
 
-  private regex = new RegExp("\r?\n|\r");
-  private regexDecimal = new RegExp("^\d");
-  private extraSpacesRegex = new RegExp("\s+");
+  private extraSpacesRegex = new RegExp(/\s+/);
 
-  public parse(text : string) : Employee[] {
+  public parse(text : string) : PayrollParseResult {
 
-    let result = text.split(this.regex);
-    let lines = result.map(w => w.trim())
-      .filter(w => this.regexDecimal.test(w.substring(0, 4)))
-      .filter(w => w.includes("$"))
-      .map(w => w.replace(/[^0-9]/g, ''))
-      .map(w => w.replace(",", "").replace("'", ""))
-      .map(w => w.replace("$", ""))
-      .map(w => w.replace("-", ""))
-      .map(w => w.replace(this.extraSpacesRegex, " "))
-      .map(w =>
-      {
-        let indexes = this.findIndexes(w, ".");
-        indexes.forEach(index => {
-          let charAfter = w[index + 1];
-          let charBefore = w[index - 1];
-          if (!this.isNumber(charAfter) || !this.isNumber(charBefore))
-            w = this.replaceAt(w, index, "");
-        });
-        return w;
-      })
-      .map(w => w.replace(this.extraSpacesRegex, " "));
+    let result : string[] = text.replace(this.extraSpacesRegex, " ").split(" ").filter(w => w != null && w.trim() != "");
 
-    let split = lines
-      .map(w => w.split(" "));
+    const start = this.getIndexMultiple(result, ['Number', 'Reason', 'for']);
+    const end = this.getIndexMultiple(result, ["-------------", "-------------", "-------------"])
 
-    let employees : Employee[] = []
+    result = result.slice(start + 4, end);
 
-    split.forEach(s => {
-      let id = s[0];
-      let gross = s[3];
-      let deductions = s[4];
-      let net = s[5];
-      let checkNumber = s[6];
+    let state = State.None;
+    let employee : Employee = {name: "", checkNumber: 0, deductions: 0, grossPay: 0, id: 0, netPay: 0};
+    const employees : Employee[] = [];
+    let skip = false;
 
-      if (checkNumber.indexOf(":") != -1)
-        checkNumber = checkNumber.substring(0, checkNumber.indexOf(":"));
+    for (let line of result) {
+      const nextLine = result[result.indexOf(line) + 1];
 
-      let employee : Employee = {
-        checkNumber : getFloat(checkNumber)!,
-        id : getFloat(id)!,
-        grossPay : getFloat(gross)!,
-        deductions : getFloat(deductions)!,
-        netPay : getFloat(net)!
+      if(line.toLowerCase().startsWith("system:")) {
+        console.log('skipping', line)
+        skip = true;
+        continue;
       }
-      employees.push(employee);
-    });
 
-    console.log(employees);
-    return employees;
-  }
+      if(line.includes("Voiding---")) {
+        console.log('skipping', line)
+        skip = false;
+        continue;
+      }
 
-  private findIndexes(text : string, query : string) : number[] {
-    const indexes = []
-    for(let i = 0; i < text.length - query.length; i++) {
-      if(query === text.substring(i, query.length)) {
-        indexes.push(i);
+      if(skip) {
+        console.log('skipping', line)
+        continue;
+      }
+
+
+      if((state === State.None || state === State.CheckNumber) && !isAmount(line)) {
+        console.log('skipping', line);
+        continue;
+      }
+
+      if((state === State.None || state === State.CheckNumber) &&  isAmount(line)) {
+        state = State.EmployeeNumber;
+        employee.id = getFloat(line)!;
+      }
+
+      else if(line.startsWith("XXX-XX-")) {
+        state = State.SSN;
+      }
+
+      else if((state === State.EmployeeNumber || state === State.Name) && !isAmount(line)) {
+        employee.name += line + " ";
+        state = State.Name;
+      }
+
+      else if(state === State.Name && isAmount(line) && nextLine.startsWith("XXX-XX-") ) {
+        state = State.Department;
+      }
+
+      else if(state === State.SSN && isAmount(line)) {
+        state = State.Gross;
+        employee.grossPay = getFloat(line)!;
+      }
+
+      else if(state === State.Gross && isAmount(line)) {
+        state = State.Deduction;
+        employee.deductions = getFloat(line)!;
+      }
+
+      else if(state === State.Deduction && isAmount(line)) {
+        state = State.Net;
+        employee.netPay = getFloat(line)!;
+      }
+
+      else if(state === State.Net && isAmount(line)) {
+        state = State.CheckNumber;
+        employee.checkNumber = getFloat(line)!;
+        employee.name = employee.name.trim();
+        employees.push(employee);
+        employee = {checkNumber: 0, deductions: 0, grossPay: 0, id: 0, name: "", netPay: 0};
       }
     }
-    return indexes;
+
+    const parseResult : PayrollParseResult = {
+      accountId: "",
+      totalDeductions: 0, totalGross: 0, totalNet: 0,
+      employees, date : ''
+    };
+
+    employees.forEach(e => {
+      parseResult.totalDeductions += e.deductions
+      parseResult.totalNet += e.netPay
+      parseResult.totalGross += e.grossPay
+    })
+
+    return parseResult;
   }
 
-  private isNumber(char : any) {
-    return char >= '0' && char <= '9';
-  }
-
-  private replaceAt(str : string, index : number, replacement : string) {
-    return str.substr(0, index) + replacement+ str.substr(index + replacement.length);
-  }
+  private getIndexMultiple = (array: string[], args: string[]) => {
+    const lower = (arg: string) => arg.toString().toLowerCase();
+    for (let i = 0; i < array.length; i++) {
+      if (lower(args[0]) === lower(array[i]) && lower(args[1]) === lower(array[i + 1]) && lower(args[2]) === lower(array[i + 2])) {
+        return i;
+      }
+    }
+    return -1;
+  };
 
 
 }

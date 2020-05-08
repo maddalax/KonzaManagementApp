@@ -1,9 +1,8 @@
 import { Storage, StorageProvider } from '../../storage/StorageProvider';
 import { CheckbookEntry, CheckbookEntryStatus } from '../../entities/checkbook/CheckbookEntry';
 import { uuid } from 'uuidv4';
-import { formatDate } from '../../utils/dateUtil';
+import {formatDate, timestamp} from '../../utils/dateUtil';
 import {CheckbookService} from "./CheckbookService";
-import Spacetime from "spacetime";
 
 export class MoneyImportService {
 
@@ -39,9 +38,10 @@ export class MoneyImportService {
           let month = parseInt(split2[0]);
           let day = parseInt(split2[1]);
           let year = parseInt(split[1]);
-          let date = Spacetime([year, month, day, 6, 0, 0, count]);
-          entry.timestamp = date.epoch;
-          entry.date = formatDate(date).toString();
+
+          const date = new Date(year, month - 1, day, 6, 0, 0, count)
+          entry.timestamp = timestamp(date);
+          entry.date = formatDate(date);
 
         } else if (line.startsWith('T')) {
           let data = this.Entry(line);

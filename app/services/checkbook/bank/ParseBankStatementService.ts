@@ -1,5 +1,4 @@
 import { BankStatementEntry } from '../../../entities/checkbook/BankStatementEntry';
-import spacetime from "spacetime";
 import {uuid} from "uuidv4";
 
 enum State {
@@ -27,14 +26,14 @@ const getIndexMultiple = (array: string[], args: string[]) => {
   return -1;
 };
 
-const getFloat = (value: string): number | null => {
+export const getFloat = (value: string): number | null => {
 
   if (isDate(value).result) {
     return null;
   }
 
   const isNegative = value.includes("-");
-  value = value.replace(/,/g, '').replace('/*/g', '').replace('/-/g', '').trim();
+  value = value.replace(/,/g, '').replace('/*/g', '').replace('/-/g', '').replace(new RegExp('\\$', 'g'), '').trim();
   const parsed = parseFloat(value);
   if(!isNaN(parsed) && isNegative) {
     return parsed > 0 ? parsed * -1 : parsed;
@@ -42,12 +41,12 @@ const getFloat = (value: string): number | null => {
   return parsed;
 };
 
-const isAmount = (val: string): boolean => {
+export const isAmount = (val: string): boolean => {
   const float = getFloat(val);
   return float != null && !isNaN(float);
 };
 
-const isDate = (val: string): { result: boolean, slashes: number } => {
+export const isDate = (val: string): { result: boolean, slashes: number } => {
 
   if (!val.includes('/')) {
     return { result: false, slashes: 0 };
@@ -76,9 +75,7 @@ export class ParseBankStatementService {
 
     const dateIndex = split.findIndex((w : string) => w === "Date");
     const dateString = split[dateIndex + 1];
-    console.log('dATE STring')
-    const year = spacetime(new Date(dateString)).year();
-    console.log('YEAR', year)
+    const year = new Date(dateString).getFullYear();
 
     const start = getIndexMultiple(split, ['Date', 'Description', 'Amount']);
     const end = getIndexMultiple(split, ["CHECKS", "IN", "SERIAL"])

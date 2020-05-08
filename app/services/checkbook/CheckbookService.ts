@@ -83,7 +83,7 @@ export class CheckbookService {
     });
     const account = await this.storage.findOne<CheckbookAccount>(accounts, {_id : id})
     account.balance = balance;
-    account.lastUpdated = formatDate(currentDate());
+    account.lastUpdated = currentDate();
     account.timestamp = currentTimestamp();
     return await this.storage.update(accounts, account);
   }

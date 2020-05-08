@@ -1,6 +1,8 @@
 import {Service, ServiceRegistry} from "../services/infrastructure/serviceRegistry";
 import {CheckbookService} from "../services/checkbook/CheckbookService";
 import { MoneyImportService } from '../services/checkbook/MoneyImportService';
+import {ExportFileService} from "../services/file/ExportFileService";
+import {PayrollStatementImportService} from "../services/checkbook/PayrollStatementImportService";
 const { ipcRenderer } = require('electron')
 
 export enum Event {
@@ -9,7 +11,9 @@ export enum Event {
   AllCheckbookEntries,
   ImportMoneyRecord,
   SaveCheckbookAccounts,
-  AllCheckbookAccounts
+  AllCheckbookAccounts,
+  ExportToHomeFolder,
+  ImportPayrollStatement
 }
 
 export function dispatch(event : Event, ...args : any[]) {
@@ -50,4 +54,10 @@ export const EventMap : any = {
   [Event.SaveCheckbookAccounts] : async (registry : ServiceRegistry, _ : Electron.IpcMainEvent, args : any[]) => {
     await registry.get<CheckbookService>(Service.Checkbook).saveAccounts(args[0]);
   },
+  [Event.ExportToHomeFolder] : async (registry : ServiceRegistry, _ : Electron.IpcMainEvent, args : any[]) => {
+    await registry.get<ExportFileService>(Service.ExportFileService).toHomeFolder(args[0], args[1]);
+  },
+  [Event.ImportPayrollStatement] : async (registry : ServiceRegistry, _ : Electron.IpcMainEvent, args : any[]) => {
+    await registry.get<PayrollStatementImportService>(Service.ImportPayrollStatement).import(args[0]);
+  }
 }

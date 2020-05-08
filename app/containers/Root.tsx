@@ -31,6 +31,7 @@ const Root =() => {
         <Route path={"/import/bank"} component={ImportBankStatement} />
         <Route path={"/import/payroll"} component={ImportPayrollStatement} />
       </div>
+      <div id={"right-sidebar"}></div>
     </div>
   </HashRouter>
 }

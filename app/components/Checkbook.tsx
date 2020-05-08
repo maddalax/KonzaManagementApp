@@ -1,13 +1,14 @@
 import React, {useEffect, useRef, useState} from 'react';
+import ReactDOM from 'react-dom'
 import {HotTable} from '@handsontable/react';
 import Handsontable from 'handsontable';
 import {dispatch, Event, registerRendererOnce} from '../events/events';
 import {CheckbookEntry, CheckbookEntryStatus} from '../entities/checkbook/CheckbookEntry';
 import {uuid} from 'uuidv4';
 import {useDebouncedCallback} from 'use-debounce';
-import {currentDate, currentTimestamp, formatDate, parseDate} from '../utils/dateUtil';
-import {getFloatOrZero, numberWithCommas} from '../utils/checkbookUtil';
-import spacetime from 'spacetime';
+import {currentDate, currentTimestamp, formatDate, parseDate, timestamp} from '../utils/dateUtil';
+import {getFloatOrZero} from '../utils/checkbookUtil';
+
 const { dialog } = require('electron').remote
 
 
@@ -25,13 +26,8 @@ export default function Checkbook(props : any) {
   const [entriesLoaded, setEntriesLoaded] = useState(false);
   const unsavedIds = useRef<{[key : string] : string}>({});
   const accountId = useRef<string>('');
-  const addedListeners = useRef<boolean>(false);
-  const [reconciledBalance, setReconciledBalance] = useState<number>(0);
-  const [totalEntries, setTotalEntries] = useState<number>(0);
-  const [reconciledEntries, setReconciledEntries] = useState<number>(0);
   const tags = useRef<string[]>([]);
   const payees = useRef<string[]>([]);
-
 
   const dispatchEntryUpdateInstant = () => {
     const toSave : CheckbookEntry[] = [];
@@ -73,12 +69,6 @@ export default function Checkbook(props : any) {
     loadEntriesIntoTable();
   }, [entriesLoaded])
 
-  useEffect(() => {
-    if(!hotTable.current || hotTable.current.isDestroyed) {
-      return;
-    }
-  })
-
   const [loadEntriesCallback] = useDebouncedCallback(() => {
       loadEntriesIntoTable();
   }, 300)
@@ -95,18 +85,10 @@ export default function Checkbook(props : any) {
     const values =  Object.values(entriesRef.current).filter(w => !w.isDeleted);
     values.sort((a, b) => a.timestamp - b.timestamp);
     let balance = 0;
-    let reconciledBalance = 0;
-    let reconciledEntries = 0;
-    let totalEntries = 0;
     let tags : any = {};
     let payees : any = {};
 
     values.forEach((entry, index) => {
-      if(entry.status === CheckbookEntryStatus.Reconciled) {
-        reconciledBalance += getFloatOrZero(entry.credit)
-        reconciledBalance += getFloatOrZero(entry.debit)
-        reconciledEntries++;
-      }
 
       if(entry.tag && isNaN(parseFloat(entry.tag))) {
         if (!tags[entry.tag]) {
@@ -124,7 +106,6 @@ export default function Checkbook(props : any) {
         }
       }
 
-      totalEntries++;
       balance += getFloatOrZero(entry.credit)
       balance += getFloatOrZero(entry.debit)
       entriesRef.current[entry._id].index = index;
@@ -145,23 +126,30 @@ export default function Checkbook(props : any) {
       data.unshift({
         _id : uuid(),
         tag : '',
-        date : formatDate(currentDate()),
+        date : currentDate(),
         payee : '',
         credit : null,
         debit : null
       })
     }
 
+    if(data.length === 0) {
+      data.unshift({
+        _id : uuid(),
+        tag : '',
+        date : currentDate(),
+        payee : '',
+        credit : null,
+        debit : null
+      });
+      hotTable.current!.loadData(data);
+      return;
+    }
+
     hotTable.current!.loadData(data);
     loadAutoCompletes(tags, payees);
-    setHeaderEntries(reconciledBalance, reconciledEntries, totalEntries);
   };
 
-  const [setHeaderEntries] = useDebouncedCallback((reconciledBalance : number, reconciledEntries: number,  totalEntries : number) => {
-    setReconciledBalance(parseFloat(reconciledBalance.toFixed(2)));
-    setReconciledEntries(reconciledEntries);
-    setTotalEntries(totalEntries);
-  }, 50)
 
   const [loadAutoCompletes] = useDebouncedCallback((tagsObj : any, payeesObj : any) => {
     const sort = (obj : any) => {
@@ -173,51 +161,6 @@ export default function Checkbook(props : any) {
     payees.current = sort(payeesObj);
   }, 300);
 
-  useEffect(() => {
-    if(!hotTable.current || hotTable.current.isDestroyed) {
-      return;
-    }
-    if(addedListeners.current) {
-      return;
-    }
-
-    addedListeners.current = true;
-
-    console.log('Adding hooks');
-    hotTable.current.addHook('beforeRemoveRow', (index) => {
-      return onDelete(index);
-    });
-
-    hotTable.current.addHook('afterChange', (changes, source) => {
-      console.log(changes, source);
-      if (source == 'edit' && changes) {
-        const change = changes[0];
-        const row = change[0];
-        const column = change[1].toString();
-        const oldValue = change[2];
-        const newValue = change[3];
-
-        let id = getDataAtCell(row, '_id');
-        if (!id) {
-          id = uuid();
-          setDataAtCell(row, '_id', id)
-        }
-
-        if(oldValue === newValue) {
-          return;
-        }
-
-        onCellChange({
-          rowId: id,
-          row,
-          column,
-          oldValue,
-          newValue
-        });
-      }
-    });
-  }, [hotTable.current]);
-
   const onCellChange = (change: CellEditChange) => {
 
     if(change.column === '_id') {
@@ -228,7 +171,7 @@ export default function Checkbook(props : any) {
       entriesRef.current[change.rowId] = {
         accountId: accountId.current,
         status: CheckbookEntryStatus.None,
-        balance: 0, credit: 0, date: formatDate(currentDate()), timestamp : currentTimestamp(), debit: 0, _id: change.rowId, payee: "", tag: "",
+        balance: 0, credit: 0, date: currentDate(), timestamp : currentTimestamp(), debit: 0, _id: change.rowId, payee: "", tag: "",
         isNew : true, index : hotTable.current!.countRows()
       }
     }
@@ -254,6 +197,7 @@ export default function Checkbook(props : any) {
     else if(change.column === "debit") {
       onAmountChange();
     }
+
   };
 
   const fixAutoComplete = (entry : CheckbookEntry) : CheckbookEntry => {
@@ -292,8 +236,8 @@ export default function Checkbook(props : any) {
         entry.status = change.newValue === 'R' ? CheckbookEntryStatus.Reconciled : CheckbookEntryStatus.None
         break;
       case 'date':
-        entry.date = formatDate(spacetime(change.newValue).add(1, 'month'));
-        entry.timestamp = spacetime(change.newValue).add(1, 'month').epoch;
+        entry.date = formatDate(change.newValue);
+        entry.timestamp = timestamp(change.newValue);
         break;
       case 'payee':
         entry.payee = change.newValue;
@@ -338,21 +282,21 @@ export default function Checkbook(props : any) {
 
   };
 
+  const sidebar = () => {
+    if(!document.getElementById('right-sidebar')) {
+      return null;
+    }
+    return ReactDOM.createPortal(
+      <div className={"column is-one-fifth"}>
+        <p>Reconcilled Balance: $200,000</p>
+      </div>,
+      document.getElementById('right-sidebar')!
+    );
+  };
+
   return (
-    <div>
-      <section>
-        <div className={"container"} style={{paddingTop : '1em', paddingBottom : '1em', paddingLeft : '.5em'}}>
-          <p>Total Entries: <strong>
-            {numberWithCommas(totalEntries)}
-          </strong></p>
-          <p>Reconciled Entries: <strong>
-            {numberWithCommas(reconciledEntries)}
-          </strong></p>
-          <p>Reconciled Balance: <strong>
-            ${numberWithCommas(reconciledBalance)}
-          </strong></p>
-        </div>
-      </section>
+    <React.Fragment>
+      {sidebar()}
       <div id="hot-app">
         <HotTable
           ref={r => {
@@ -370,10 +314,40 @@ export default function Checkbook(props : any) {
             console.log(changes, source);
             beforeChange(changes, source);
           }}
+          beforeRemoveRow={index => {
+            onDelete(index);
+          }}
+          afterChange={(changes, source) => {
+            if (source == 'edit' && changes) {
+              const change = changes[0];
+              const row = change[0];
+              const column = change[1].toString();
+              const oldValue = change[2];
+              const newValue = change[3];
+
+              let id = getDataAtCell(row, '_id');
+              if (!id) {
+                id = uuid();
+                setDataAtCell(row, '_id', id)
+              }
+
+              if(oldValue === newValue) {
+                return;
+              }
+
+              onCellChange({
+                rowId: id,
+                row,
+                column,
+                oldValue,
+                newValue
+              });
+            }
+          }}
           columns={[
             {data: '_id'},
             {data: 'tag', type : 'autocomplete', strict : false, source : (_, process) => {
-              return process(tags.current);
+                return process(tags.current);
               }},
             {data: 'date', type: 'date', dateFormat: 'MM/DD/YYYY'},
             {
@@ -413,10 +387,9 @@ export default function Checkbook(props : any) {
           ]}
           stretchH="all"
           contextMenu
-          viewportRowRenderingOffset={30}
           rowHeaders
           width="100%" licenseKey="non-commercial-and-evaluation"/>
       </div>
-    </div>
+    </React.Fragment>
   );
 }

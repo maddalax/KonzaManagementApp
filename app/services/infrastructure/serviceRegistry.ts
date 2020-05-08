@@ -2,13 +2,17 @@ import Bottle from 'bottlejs';
 import {CheckbookService} from "../checkbook/CheckbookService";
 import {StorageProvider} from "../../storage/StorageProvider";
 import { MoneyImportService } from '../checkbook/MoneyImportService';
+import {ExportFileService} from "../file/ExportFileService";
+import {PayrollStatementImportService} from "../checkbook/PayrollStatementImportService";
 
 const bottle : Bottle = new Bottle();
 
 export enum Service {
   Checkbook,
   Storage,
-  MoneyImport
+  MoneyImport,
+  ExportFileService,
+  ImportPayrollStatement
 }
 
 export class ServiceRegistry {
@@ -30,5 +34,6 @@ export const registry : ServiceRegistry = new ServiceRegistry();
 registry.register(Service.Storage, StorageProvider);
 registry.register(Service.Checkbook, CheckbookService, Service.Storage);
 registry.register(Service.MoneyImport, MoneyImportService, Service.Storage, Service.Checkbook)
-
+registry.register(Service.ExportFileService, ExportFileService);
+registry.register(Service.ImportPayrollStatement, PayrollStatementImportService, Service.Checkbook)
 

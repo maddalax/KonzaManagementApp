@@ -146,8 +146,8 @@ export const CheckbookAccounts = (props : any) => {
       width="100%" licenseKey="non-commercial-and-evaluation"/>
     <div style={{"padding": "1em"}}>
       <button className={"button is-small is-primary is-light"} onClick={() => {
-        accounts.current.push({_id: uuid(), isNew : true, isDeleted : false, balance: 0, created: formatDate(currentDate()), lastUpdated:
-            formatDate(currentDate()), name: "Replace Name Here", timestamp: currentTimestamp()})
+        accounts.current.push({_id: uuid(), isNew : true, isDeleted : false, balance: 0, created: currentDate(), lastUpdated:
+            currentDate(), name: "Replace Name Here", timestamp: currentTimestamp()})
         save();
         loadData();
       }}>Add New Account</button>
