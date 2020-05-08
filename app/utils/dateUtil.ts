@@ -1,13 +1,5 @@
 import {getTime, format, parse} from 'date-fns'
 
-const time = getTime(Date.now());
-let result = format(
-  time,
-  'MM/dd/yyyy'
-)
-console.log(result);
-
-
 export function stringToDate(date : string) : Date {
    let parsed = parse(date, 'yyyy-MM-dd', new Date());
    if(parsed.toString() === "Invalid Date") {

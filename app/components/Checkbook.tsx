@@ -296,7 +296,6 @@ export default function Checkbook(props : any) {
 
   return (
     <React.Fragment>
-      {sidebar()}
       <div id="hot-app">
         <HotTable
           ref={r => {

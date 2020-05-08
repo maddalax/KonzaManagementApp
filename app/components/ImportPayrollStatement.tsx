@@ -6,6 +6,9 @@ import {ParsePayrollStatementService} from '../services/checkbook/bank/ParsePayr
 import {Employee, PayrollParseResult} from "../entities/checkbook/Employee";
 import {numberWithCommas} from "../utils/checkbookUtil";
 import {ExportPayrollStatementService} from "../services/checkbook/bank/ExportPayrollStatementService";
+import findFile from '../images/findFile.png';
+import recoverAccounts from '../images/recoverAccounts.png';
+import openMoney from '../images/openMoney.png';
 
 
 export const ImportPayrollStatement = (props: any) => {
@@ -94,8 +97,43 @@ export const ImportPayrollStatement = (props: any) => {
     };
 
     if(didExportMoney) {
-      return <div>
-        Complete
+      return <div style={{padding : '1em'}}>
+        <div>
+          <div className="notification is-primary">
+            <div className="header">
+              Successfully exported money file..
+            </div>
+            <p>Export Path: <strong>C:\Users\USERNAME\ExportedPayroll-{date}.qif</strong></p>
+          </div>
+          <br />
+          <h2>Import instructions:</h2>
+          <p><strong>Step 1: Open Microsoft Money</strong></p>
+          <img width="90%" height="525px" src={openMoney} />
+          <br /><br />
+          <h3>
+            <strong>Step 2:</strong> Select File -&gt; Import -&gt; Recover Accounts
+          </h3>
+          <img src={recoverAccounts} height="525px" />
+          <div className="notification is-danger">Make sure Recover Accounts is selected
+            and NOT downloaded statements, it will mess up payroll if downloaded
+            statements is selected.</div>
+          <h3><strong>Step 1:</strong></h3>
+          <p>
+            Locate the exported file at the path written above.
+            It will contain the date you selected as apart of the file name.
+          </p>
+          <img src={findFile} height="525px" />
+          <h3><strong>Step 4:</strong></h3>
+          <p>
+            Select the account you would like to import into.
+            This will most likely be the <strong>Payroll</strong> account.
+            After that is selected, follow the on-screen prompts.
+          </p>
+          <p>If there is any other popups other than selecting an account
+            just choose the default value.</p>
+          <br /><br /><br />
+        </div>
+
       </div>
     }
 

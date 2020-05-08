@@ -1,5 +1,6 @@
 ﻿import {MoneyTransaction, PayrollParseResult} from "../../../entities/checkbook/Employee";
 import {dispatch, Event} from "../../../events/events";
+import {stringToDate, timestamp} from "../../../utils/dateUtil";
 
 
 export class ExportPayrollStatementService {
@@ -17,9 +18,9 @@ export class ExportPayrollStatementService {
   }
 
   public simpleDate(date: string) {
-    const s = new Date(date);
-    s.setHours(12);
-    return `${s.getMonth() + 1}/${s.getDate()}'${s.getFullYear()}`;
+    const parsed = stringToDate(date);
+    parsed.setHours(10)
+    return `${parsed.getMonth() + 1}/${parsed.getDate()}'${parsed.getFullYear()}`;
   }
 
   private parseToTransactions(request: PayrollParseResult): MoneyTransaction[] {
