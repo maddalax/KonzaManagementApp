@@ -18,21 +18,23 @@ const Root =() => {
 
   }, [])
 
-  return <HashRouter>
-    <div className="columns is-gapless">
-      <div className="column is-one-fifth">
-        <Sidebar/>
+  return <div>
+    <HashRouter>
+      <div className="columns is-gapless">
+        <div className="column is-one-fifth">
+          <Sidebar/>
+        </div>
+        <div className="column">
+          <Route path={"/"} exact component={HomePage} />
+          <Route path={"/checkbook"} exact component={CheckbookAccounts} />
+          <Route path={"/checkbook/:id"} exact component={Checkbook} />
+          <Route path={"/import"} exact component={ImportMoneyFile} />
+          <Route path={"/import/bank"} component={ImportBankStatement} />
+          <Route path={"/import/payroll"} component={ImportPayrollStatement} />
+        </div>
       </div>
-      <div className="column">
-        <Route path={"/"} exact component={HomePage} />
-        <Route path={"/checkbook"} exact component={CheckbookAccounts} />
-        <Route path={"/checkbook/:id"} exact component={Checkbook} />
-        <Route path={"/import"} exact component={ImportMoneyFile} />
-        <Route path={"/import/bank"} component={ImportBankStatement} />
-        <Route path={"/import/payroll"} component={ImportPayrollStatement} />
-      </div>
-    </div>
-  </HashRouter>
+    </HashRouter>
+  </div>
 }
 
 export default Root;

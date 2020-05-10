@@ -14,6 +14,8 @@ import log from 'electron-log';
 import MenuBuilder from './menu';
 import {dispatchToWindow, Event, EventMap} from "./events/events";
 import {ServiceRegistry} from "./services/infrastructure/serviceRegistry";
+import path from 'path';
+
 
 const { ipcMain } = require('electron')
 
@@ -57,7 +59,7 @@ const createWindow = async () => {
     await installExtensions();
   }
 
-  mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({pr
     show: false,
     width: 1280,
     height: 720,
@@ -80,6 +82,7 @@ const createWindow = async () => {
     } else {
       mainWindow.show();
       mainWindow.focus();
+      //mainWindow.webContents.openDevTools({mode : 'detach'});
     }
   });
 

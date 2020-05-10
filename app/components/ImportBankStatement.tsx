@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { dispatch, Event, registerRendererOnce } from '../events/events';
 import { CheckbookAccount } from '../entities/checkbook/CheckbookAccount';
-import PDFJS, { PDFDocumentProxy, PDFSource } from 'pdfjs-dist';
+import PDFJS, { PDFDocumentProxy, PDFSource } from 'pdfjs-dist/webpack';
 import { ParseBankStatementService } from '../services/checkbook/bank/ParseBankStatementService';
 import { BankStatementEntry } from '../entities/checkbook/BankStatementEntry';
 import { BankStatementReconciler } from './BankStatementReconciler';

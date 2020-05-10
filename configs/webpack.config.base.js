@@ -4,6 +4,7 @@
 
 import path from 'path';
 import webpack from 'webpack';
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 import { dependencies as externals } from '../app/package.json';
 
 export default {
@@ -42,7 +43,10 @@ export default {
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'production'
     }),
-
-    new webpack.NamedModulesPlugin()
+    new webpack.NamedModulesPlugin(),
+    new CopyWebpackPlugin([{
+        from: 'node_modules/pdfjs-dist/build/pdf.worker.js',
+        to: 'pdf.worker.js'
+      }])
   ]
 };

@@ -6,5 +6,5 @@ type Props = {
 
 export default function App(props: Props) {
   const { children } = props;
-  return <>{children}</>;
+  return <div>{children}</div>;
 }
