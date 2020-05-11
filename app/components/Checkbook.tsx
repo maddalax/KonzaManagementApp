@@ -7,6 +7,7 @@ import {uuid} from 'uuidv4';
 import {useDebouncedCallback} from 'use-debounce';
 import {currentDate, currentTimestamp, formatDate, parseDate, timestamp} from '../utils/dateUtil';
 import {getFloatOrZero} from '../utils/checkbookUtil';
+import {showModal} from "./Modal";
 
 const { dialog } = require('electron').remote
 
@@ -444,7 +445,37 @@ export default function Checkbook(props : any) {
             },
           ]}
           stretchH="all"
-          contextMenu
+          contextMenu={{
+            callback : (key, selection, clickEvent) => {
+              console.log(key, selection, clickEvent);
+            },
+            items : {
+              'addMemo' : {
+                name : () => 'Set Memo',
+                callback(_, selection) {
+                  const row = selection[0].start.row;
+                  const id = getDataAtCell(row, '_id');
+                  const entry = entriesRef.current[id];
+                  showModal({
+                    title : 'Add Memo To Entry',
+                    inputs : [{name : 'memo', placeholder : 'Enter Memo', value : entry.memo}],
+                    onSave : (values) => {
+                      entriesRef.current[id].memo = values["memo"];
+                      unsavedIds.current[id] = id;
+                      dispatchEntryUpdateInstant()
+                      return Promise.resolve();
+                    }
+                  })
+                }
+              },
+              'removeRows' : {
+                name : () => 'Remove selected rows',
+                callback() {
+                  removeRows();
+                }
+              },
+            }
+          }}
           rowHeaders
           width="100%" licenseKey="non-commercial-and-evaluation"/>
       </div>

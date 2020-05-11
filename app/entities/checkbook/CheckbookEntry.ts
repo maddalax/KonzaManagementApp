@@ -11,7 +11,8 @@ export interface CheckbookEntry {
   isNew? : boolean
   isDeleted? : boolean
   index : number,
-  accountId : string
+  accountId : string,
+  memo? : string
 }
 
 export enum CheckbookEntryStatus {
