@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import {HashRouter, Route} from 'react-router-dom';
 import HomePage from './HomePage';
 import Checkbook from '../components/Checkbook';
@@ -15,7 +15,6 @@ const Root =() => {
     registerRendererOnce(Event.Error, (_, err : string) => {
       console.error(err);
     })
-
   }, [])
 
   return <div>

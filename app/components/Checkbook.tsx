@@ -8,6 +8,7 @@ import {useDebouncedCallback} from 'use-debounce';
 import {currentDate, currentTimestamp, formatDate, parseDate, timestamp} from '../utils/dateUtil';
 import {getFloatOrZero} from '../utils/checkbookUtil';
 import {showModal} from "./Modal";
+import {removeLoader, showLoader} from "./Loader";
 
 const { dialog } = require('electron').remote
 
@@ -29,6 +30,7 @@ export default function Checkbook(props : any) {
   const tags = useRef<string[]>([]);
   const payees = useRef<string[]>([]);
   const sortedValues = useRef<CheckbookEntry[]>([]);
+  const loader = useRef<boolean>(true);
 
   const dispatchEntryUpdateInstant = () => {
     const toSave : CheckbookEntry[] = [];
@@ -61,6 +63,12 @@ export default function Checkbook(props : any) {
       setEntriesLoaded(true);
     })
     dispatch(Event.AllCheckbookEntries, accountId.current);
+  }, [])
+
+  useEffect(() => {
+    if(loader.current) {
+      showLoader();
+    }
   }, [])
 
   useEffect(() => {
@@ -159,6 +167,9 @@ export default function Checkbook(props : any) {
       hotTable.current!.selectCell(0, 1);
     }
 
+    setTimeout(() => {
+      removeLoader();
+    }, 50);
   };
 
 
