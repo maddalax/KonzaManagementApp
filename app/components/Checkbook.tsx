@@ -1,5 +1,4 @@
 import React, {useEffect, useRef, useState} from 'react';
-import ReactDOM from 'react-dom'
 import {HotTable} from '@handsontable/react';
 import Handsontable from 'handsontable';
 import {dispatch, Event, registerRendererOnce} from '../events/events';
@@ -28,6 +27,7 @@ export default function Checkbook(props : any) {
   const accountId = useRef<string>('');
   const tags = useRef<string[]>([]);
   const payees = useRef<string[]>([]);
+  const sortedValues = useRef<CheckbookEntry[]>([]);
 
   const dispatchEntryUpdateInstant = () => {
     const toSave : CheckbookEntry[] = [];
@@ -66,29 +66,34 @@ export default function Checkbook(props : any) {
     if(!hotTable.current || hotTable.current.isDestroyed) {
       return;
     }
-    loadEntriesIntoTable();
+    loadEntriesIntoTable(false);
   }, [entriesLoaded])
 
-  const [loadEntriesCallback] = useDebouncedCallback(() => {
-      loadEntriesIntoTable();
-  }, 300)
+  const [loadEntriesCallback] = useDebouncedCallback((setSelection : boolean) => {
+      loadEntriesIntoTable(setSelection);
+  }, 200)
 
-  const onAmountChange = () => {
-    loadEntriesCallback();
+  const onAmountChange = (setSelection : boolean) => {
+    loadEntriesCallback(setSelection);
   };
 
-  const loadEntriesIntoTable = () => {
+  const loadEntriesIntoTable = (setSelection : boolean = false) => {
     if(!hotTable.current || hotTable.current.isDestroyed) {
      return;
     }
     let data: any[] = [];
-    const values =  Object.values(entriesRef.current).filter(w => !w.isDeleted);
-    values.sort((a, b) => a.timestamp - b.timestamp);
+
+    if(sortedValues.current.length === 0) {
+      const values =  Object.values(entriesRef.current).filter(w => !w.isDeleted);
+      values.sort((a, b) => a.timestamp - b.timestamp);
+      sortedValues.current = values;
+    }
+
     let balance = 0;
     let tags : any = {};
     let payees : any = {};
 
-    values.forEach((entry, index) => {
+    sortedValues.current.forEach((entry, index) => {
 
       if(entry.tag && isNaN(parseFloat(entry.tag))) {
         if (!tags[entry.tag]) {
@@ -148,6 +153,11 @@ export default function Checkbook(props : any) {
 
     hotTable.current!.loadData(data);
     loadAutoCompletes(tags, payees);
+
+    if(setSelection) {
+      hotTable.current!.selectCell(0, 1);
+    }
+
   };
 
 
@@ -187,16 +197,49 @@ export default function Checkbook(props : any) {
 
     dispatchEntryUpdate();
 
+    console.log(change);
+
     // Re-calculate balance due to date being changed.
     if(change.column === 'date' && (entry.credit || entry.debit)) {
-      onAmountChange();
+      sortedValues.current = [];
+      onAmountChange(false);
     }
-    else if(change.column === "credit" ) {
-      onAmountChange();
+    else if(change.column === "credit") {
+      change.row === 0 ? addNewEntry(entry) : onAmountChange(true);
     }
     else if(change.column === "debit") {
-      onAmountChange();
+      change.row === 0 ? addNewEntry(entry) : onAmountChange(true);
     }
+
+  };
+
+  const addNewEntry = (entry : CheckbookEntry) => {
+    setDataAtCell(0, 'id', entry._id);
+    sortedValues.current.unshift(entry)
+    hotTable.current!.alter('insert_row', 0);
+    hotTable.current!.selectCell(0, 1);
+    setDataAtCell(0, 'date', currentDate());
+
+    setTimeout(() => {
+      let balance = 0;
+      sortedValues.current.forEach(s => {
+        balance += getFloatOrZero(s.credit)
+        balance += getFloatOrZero(s.debit)
+      });
+      let rowId = -1;
+      for(let i = 0; i < 10; i++) {
+        const id = getDataAtCell(i, "id");
+        if(id === entry._id) {
+          rowId = i;
+          break;
+        }
+      }
+      if(rowId != -1) {
+        setDataAtCell(rowId, 'balance', balance);
+      }
+    }, 100)
+
+    dispatchEntryUpdateInstant();
 
   };
 
@@ -210,19 +253,22 @@ export default function Checkbook(props : any) {
     return entry;
   };
 
-  const onDelete = (row : number) => {
+  const onDelete = (rows : Set<number>) => {
     const confirm = dialog.showMessageBoxSync({
-      message  : 'Are you sure you want to hide this row? Row will be hidden and removed from all calculations.',
+      message  : `Are you sure you want to hide ${rows.size} row(s)? Row(s) will be hidden and removed from all calculations.`,
       buttons : ["Yes", "Cancel"]
     })
     if(confirm !== 0) {
       return false;
     }
-    const id = hotTable.current!.getDataAtCell(row, 0);
-    entriesRef.current[id].isDeleted = true;
-    unsavedIds.current[id] = id;
+    rows.forEach(r => {
+      const id = hotTable.current!.getDataAtCell(r, 0);
+      entriesRef.current[id].isDeleted = true;
+      unsavedIds.current[id] = id;
+    });
+    sortedValues.current = [];
     dispatchEntryUpdateInstant();
-    loadEntriesCallback();
+    loadEntriesCallback(false);
     return true;
   };
 
@@ -266,12 +312,17 @@ export default function Checkbook(props : any) {
 
     const map : any = {
       'p' : 'Payroll',
-      'd' : 'Debit'
+      'd' : 'Debit',
+      'de' : 'Debit',
+      'deb' : 'Debit',
+      'pa' : 'Payroll',
+      'pay' : 'Payroll'
     }
 
     const newValue = changes[0][3];
-    if(map[newValue]) {
-      changes[0][3] = map[newValue];
+    console.log('new value', newValue)
+    if(newValue != null && typeof newValue === 'string' && map[newValue.toString().toLowerCase()]) {
+      changes[0][3] = map[newValue.toString().toLowerCase()];
       return;
     }
 
@@ -282,17 +333,23 @@ export default function Checkbook(props : any) {
 
   };
 
-  const sidebar = () => {
-    if(!document.getElementById('right-sidebar')) {
-      return null;
-    }
-    return ReactDOM.createPortal(
-      <div className={"column is-one-fifth"}>
-        <p>Reconcilled Balance: $200,000</p>
-      </div>,
-      document.getElementById('right-sidebar')!
-    );
-  };
+  const [removeRows] = useDebouncedCallback(() => {
+    const rows : Set<number> = new Set<number>();
+    const selected = hotTable.current!.getSelected()!;
+    console.log(selected);
+    selected.forEach((s) => {
+      const start = s[0];
+      const end = s[2];
+      for(let i = start; i <= end; i++) {
+        rows.add(i);
+      }
+    })
+    console.log('selected rows', rows);
+    rows.forEach(r => {
+      console.log('Tag', r, hotTable.current!.getDataAtCell(r, 1));
+    })
+    onDelete(rows);
+  }, 100)
 
   return (
     <React.Fragment>
@@ -313,9 +370,11 @@ export default function Checkbook(props : any) {
             console.log(changes, source);
             beforeChange(changes, source);
           }}
-          beforeRemoveRow={index => {
-            onDelete(index);
+          beforeRemoveRow={_ => {
+            removeRows();
+            return false;
           }}
+          outsideClickDeselects={false}
           afterChange={(changes, source) => {
             if (source == 'edit' && changes) {
               const change = changes[0];

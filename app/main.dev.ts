@@ -59,7 +59,7 @@ const createWindow = async () => {
     await installExtensions();
   }
 
-  mainWindow = new BrowserWindow({pr
+  mainWindow = new BrowserWindow({
     show: false,
     width: 1280,
     height: 720,
