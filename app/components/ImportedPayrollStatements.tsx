@@ -16,6 +16,7 @@ export const ImportedPayrollStatements = (props : ImportedPayrollStatementsProps
   useEffect(() => {
     registerRendererOnce(Event.AllPayrollStatements, (_, args) => {
       statements.current = args[0];
+      statements.current = statements.current.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setLoaded(true);
     })
     dispatch(Event.AllPayrollStatements);

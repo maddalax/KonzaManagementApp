@@ -24,15 +24,7 @@ export const ImportPayrollStatement = (props: any) => {
     const [didExportMoney, setDidExportMoney] = useState(false);
     const [date, setDate] = useState('');
     const [name, setName] = useState('');
-    const statements = useRef<PayrollParseResult[]>([]);
     const missingNames = useRef<string[]>([])
-
-    useEffect(() => {
-      registerRendererOnce(Event.AllPayrollStatements, (_, args) => {
-        statements.current = args[0];
-      });
-      dispatch(Event.AllPayrollStatements);
-    }, []);
 
     useEffect(() => {
       registerRendererOnce(Event.AllCheckbookAccounts, (_, args: any[]) => {
@@ -322,6 +314,7 @@ export const ImportPayrollStatement = (props: any) => {
         <div className="container" style={{ paddingLeft: '1.5em', paddingBottom: '2em' }}>
           <button className={'button is-primary is-light'} onClick={() => {
             setDidUpload(true);
+            showComparsionModal();
           }}>
             View Statement
           </button>
