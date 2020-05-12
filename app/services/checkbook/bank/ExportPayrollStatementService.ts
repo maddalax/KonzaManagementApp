@@ -1,13 +1,13 @@
 ﻿import {MoneyTransaction, PayrollParseResult} from "../../../entities/checkbook/Employee";
 import {dispatch, Event} from "../../../events/events";
-import {stringToDate, timestamp} from "../../../utils/dateUtil";
+import {stringToDate} from "../../../utils/dateUtil";
 
 
 export class ExportPayrollStatementService {
 
   public exportStatement(result: PayrollParseResult) {
     let transactions = this.parseToTransactions(result);
-    let file = `ExportedPayroll-${result.date}.qif`;
+    let file = `ExportedPayroll-${result.date}-${result.name}.qif`;
     let builder = "!Type:Bank\n";
     for (let i = 0; i < transactions.length; i++) {
       let t = transactions[i];

@@ -4,7 +4,8 @@ const os = require('os');
 
 export enum Storage {
   Checkbook,
-  CheckbookAccounts
+  CheckbookAccounts,
+  PayrollStatements
 }
 
 const getFilePath = (storage : Storage) => {
@@ -14,12 +15,14 @@ const getFilePath = (storage : Storage) => {
       return path.join(home, 'konza', 'checkbook_accounts.db');
     case Storage.Checkbook:
       return path.join(home, 'konza', 'checkbook.db');
+    case Storage.PayrollStatements:
+      return path.join(home, 'konza', 'payroll_statements.db');
   }
 }
 
 const checkbook = new Datastore({ filename: getFilePath(Storage.Checkbook), autoload : true });
 const checkbookAccounts = new Datastore({ filename: getFilePath(Storage.CheckbookAccounts), autoload : true });
-
+const payrollStatements = new Datastore({ filename: getFilePath(Storage.PayrollStatements), autoload : true });
 
 export class StorageProvider {
 
@@ -29,6 +32,8 @@ export class StorageProvider {
         return Promise.resolve(checkbook);
       case Storage.CheckbookAccounts:
         return Promise.resolve(checkbookAccounts);
+      case Storage.PayrollStatements:
+        return Promise.resolve(payrollStatements);
     }
   }
 

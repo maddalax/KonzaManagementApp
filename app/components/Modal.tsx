@@ -56,7 +56,7 @@ export const Modal = (props : ModalProps) => {
         })}
       </section>
       <footer className="modal-card-foot">
-        <button className="button is-primary is-light" onClick={onSave}>Save changes</button>
+        <button className="button is-primary is-light" onClick={onSave}>OK</button>
         <button className="button" onClick={props.onCancel}>Cancel</button>
       </footer>
     </div>

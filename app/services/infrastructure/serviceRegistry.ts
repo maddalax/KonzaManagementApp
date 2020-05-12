@@ -35,5 +35,5 @@ registry.register(Service.Storage, StorageProvider);
 registry.register(Service.Checkbook, CheckbookService, Service.Storage);
 registry.register(Service.MoneyImport, MoneyImportService, Service.Storage, Service.Checkbook)
 registry.register(Service.ExportFileService, ExportFileService);
-registry.register(Service.ImportPayrollStatement, PayrollStatementImportService, Service.Checkbook)
+registry.register(Service.ImportPayrollStatement, PayrollStatementImportService, Service.Checkbook, Service.Storage)
 

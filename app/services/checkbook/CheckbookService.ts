@@ -1,7 +1,7 @@
 import {Storage, StorageProvider} from "../../storage/StorageProvider";
 import {CheckbookEntry} from "../../entities/checkbook/CheckbookEntry";
 import {CheckbookAccount} from "../../entities/checkbook/CheckbookAccount";
-import { currentDate, currentTimestamp, formatDate } from '../../utils/dateUtil';
+import { currentDate, currentTimestamp } from '../../utils/dateUtil';
 import { getFloatOrZero } from '../../utils/checkbookUtil';
 
 export class CheckbookService {

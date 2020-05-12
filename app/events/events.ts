@@ -13,7 +13,9 @@ export enum Event {
   SaveCheckbookAccounts,
   AllCheckbookAccounts,
   ExportToHomeFolder,
-  ImportPayrollStatement
+  ImportPayrollStatement,
+  SavePayrollStatement,
+  AllPayrollStatements
 }
 
 export function dispatch(event : Event, ...args : any[]) {
@@ -59,5 +61,11 @@ export const EventMap : any = {
   },
   [Event.ImportPayrollStatement] : async (registry : ServiceRegistry, _ : Electron.IpcMainEvent, args : any[]) => {
     await registry.get<PayrollStatementImportService>(Service.ImportPayrollStatement).import(args[0]);
-  }
+  },
+  [Event.SavePayrollStatement] : async (registry : ServiceRegistry, _ : Electron.IpcMainEvent, args : any[]) => {
+    await registry.get<PayrollStatementImportService>(Service.ImportPayrollStatement).save(args[0]);
+  },
+  [Event.AllPayrollStatements] : async (registry : ServiceRegistry, _ : Electron.IpcMainEvent) => {
+    return await registry.get<PayrollStatementImportService>(Service.ImportPayrollStatement).getImportedStatements();
+  },
 }

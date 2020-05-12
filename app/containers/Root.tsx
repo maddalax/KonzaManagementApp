@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect} from 'react';
 import {HashRouter, Route} from 'react-router-dom';
 import HomePage from './HomePage';
 import Checkbook from '../components/Checkbook';
@@ -8,6 +8,7 @@ import { ImportMoneyFile } from '../components/ImportMoneyFile';
 import {CheckbookAccounts} from "../components/CheckbookAccounts";
 import { ImportBankStatement } from '../components/ImportBankStatement';
 import { ImportPayrollStatement } from '../components/ImportPayrollStatement';
+import { ImportedPayrollStatements } from '../components/ImportedPayrollStatements';
 
 const Root =() => {
 
@@ -28,8 +29,9 @@ const Root =() => {
           <Route path={"/checkbook"} exact component={CheckbookAccounts} />
           <Route path={"/checkbook/:id"} exact component={Checkbook} />
           <Route path={"/import"} exact component={ImportMoneyFile} />
-          <Route path={"/import/bank"} component={ImportBankStatement} />
-          <Route path={"/import/payroll"} component={ImportPayrollStatement} />
+          <Route path={"/import/bank"} exact component={ImportBankStatement} />
+          <Route path={"/import/payroll"} exact component={ImportPayrollStatement} />
+          <Route path={"/payroll/list"} exact component={ImportedPayrollStatements} />
         </div>
       </div>
     </HashRouter>

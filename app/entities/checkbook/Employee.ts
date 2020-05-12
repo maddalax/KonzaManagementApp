@@ -14,6 +14,7 @@ export interface PayrollParseResult {
   employees : Employee[]
   date : string
   accountId : string
+  name : string
 }
 
 export interface MoneyTransaction {

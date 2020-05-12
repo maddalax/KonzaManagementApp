@@ -8,7 +8,6 @@ import {useDebouncedCallback} from 'use-debounce';
 import {currentDate, currentTimestamp, formatDate, parseDate, timestamp} from '../utils/dateUtil';
 import {getFloatOrZero} from '../utils/checkbookUtil';
 import {showModal} from "./Modal";
-import {removeLoader, showLoader} from "./Loader";
 
 const { dialog } = require('electron').remote
 
@@ -30,7 +29,7 @@ export default function Checkbook(props : any) {
   const tags = useRef<string[]>([]);
   const payees = useRef<string[]>([]);
   const sortedValues = useRef<CheckbookEntry[]>([]);
-  const loader = useRef<boolean>(true);
+  const loading = useRef<boolean>(true);
 
   const dispatchEntryUpdateInstant = () => {
     const toSave : CheckbookEntry[] = [];
@@ -66,15 +65,10 @@ export default function Checkbook(props : any) {
   }, [])
 
   useEffect(() => {
-    if(loader.current) {
-      showLoader();
-    }
-  }, [])
-
-  useEffect(() => {
     if(!hotTable.current || hotTable.current.isDestroyed) {
       return;
     }
+    loading.current = false;
     loadEntriesIntoTable(false);
   }, [entriesLoaded])
 
@@ -147,7 +141,20 @@ export default function Checkbook(props : any) {
       })
     }
 
-    if(data.length === 0) {
+    if(loading && data.length === 0) {
+      data.unshift({
+        _id : uuid(),
+        tag : 'Loading Data...',
+        date : '',
+        payee : '',
+        credit : null,
+        debit : null
+      });
+      hotTable.current!.loadData(data);
+      return;
+    }
+
+    if(!loading && data.length === 0) {
       data.unshift({
         _id : uuid(),
         tag : '',
@@ -166,10 +173,6 @@ export default function Checkbook(props : any) {
     if(setSelection) {
       hotTable.current!.selectCell(0, 1);
     }
-
-    setTimeout(() => {
-      removeLoader();
-    }, 50);
   };
 
 

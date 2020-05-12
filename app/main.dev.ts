@@ -80,8 +80,9 @@ const createWindow = async () => {
     if (process.env.START_MINIMIZED) {
       mainWindow.minimize();
     } else {
+      //mainWindow.minimize();
       mainWindow.show();
-      mainWindow.focus();
+      //mainWindow.focus();
       //mainWindow.webContents.openDevTools({mode : 'detach'});
     }
   });

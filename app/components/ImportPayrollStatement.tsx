@@ -1,14 +1,16 @@
-import React, {useEffect, useRef, useState} from 'react';
-import {dispatch, Event, registerRendererOnce} from '../events/events';
-import {CheckbookAccount} from '../entities/checkbook/CheckbookAccount';
-import PDFJS, {PDFDocumentProxy, PDFSource} from 'pdfjs-dist/webpack';
-import {ParsePayrollStatementService} from '../services/checkbook/bank/ParsePayrollStatementService';
-import {Employee, PayrollParseResult} from "../entities/checkbook/Employee";
-import {numberWithCommas} from "../utils/checkbookUtil";
-import {ExportPayrollStatementService} from "../services/checkbook/bank/ExportPayrollStatementService";
+import React, { useEffect, useRef, useState } from 'react';
+import { dispatch, Event, registerRendererOnce } from '../events/events';
+import { CheckbookAccount } from '../entities/checkbook/CheckbookAccount';
+import PDFJS, { PDFDocumentProxy, PDFSource } from 'pdfjs-dist/webpack';
+import { ParsePayrollStatementService } from '../services/checkbook/bank/ParsePayrollStatementService';
+import { Employee, PayrollParseResult } from '../entities/checkbook/Employee';
+import { numberWithCommas } from '../utils/checkbookUtil';
+import { ExportPayrollStatementService } from '../services/checkbook/bank/ExportPayrollStatementService';
 import findFile from '../images/findFile.png';
 import recoverAccounts from '../images/recoverAccounts.png';
 import openMoney from '../images/openMoney.png';
+import { showModal } from './Modal';
+import { ImportedPayrollStatements } from './ImportedPayrollStatements';
 
 
 export const ImportPayrollStatement = (props: any) => {
@@ -17,11 +19,20 @@ export const ImportPayrollStatement = (props: any) => {
     const [accounts, setAccounts] = useState<CheckbookAccount[]>([]);
     const [account, setAccount] = useState<CheckbookAccount | null>(null);
     const [importing, setImporting] = useState(false);
-    const parsed = useRef<PayrollParseResult | null>(null);
+    const parsed = useRef<PayrollParseResult | null>(props.history.location && props.history.location.state ? props.history.location.state.result : null);
     const [didUpload, setDidUpload] = useState(false);
     const [didExportMoney, setDidExportMoney] = useState(false);
     const [date, setDate] = useState('');
+    const [name, setName] = useState('');
+    const statements = useRef<PayrollParseResult[]>([]);
+    const missingNames = useRef<string[]>([])
 
+    useEffect(() => {
+      registerRendererOnce(Event.AllPayrollStatements, (_, args) => {
+        statements.current = args[0];
+      });
+      dispatch(Event.AllPayrollStatements);
+    }, []);
 
     useEffect(() => {
       registerRendererOnce(Event.AllCheckbookAccounts, (_, args: any[]) => {
@@ -29,7 +40,6 @@ export const ImportPayrollStatement = (props: any) => {
         setAccount(args[0][0]);
       });
       registerRendererOnce(Event.ImportMoneyRecord, () => {
-        console.log('complete');
         props.history.replace('/checkbook');
       });
       dispatch(Event.AllCheckbookAccounts);
@@ -45,7 +55,7 @@ export const ImportPayrollStatement = (props: any) => {
       const reader = new FileReader();
       reader.onload = (event) => {
         let myData = new Uint8Array(event.target.result);
-        let data = {data: myData};
+        let data = { data: myData };
         parsePdf(data as any);
       };
       reader.readAsArrayBuffer(file!);
@@ -57,11 +67,53 @@ export const ImportPayrollStatement = (props: any) => {
       const results = parser.parse(text);
       parsed.current = results;
       setDidUpload(true);
+      showComparsionModal();
+    };
+
+    const showComparsionModal = () => {
+      showModal({
+        onSave(_): Promise<any> {
+          return Promise.resolve(undefined);
+        },
+        title : 'Select Previous Payroll Statement To Compare Against',
+        body : <div>
+          <ImportedPayrollStatements isModal={true} onSelection={(e) => {
+            console.log(e);
+            compareAgainstLast(parsed.current!, e);
+            if(missingNames.current.length > 0) {
+              showMissingNamesModal();
+            }
+            else {
+              showModal({
+                onSave(_): Promise<any> {
+                  return Promise.resolve(undefined);
+                }, title: 'All Names Found On New Payroll',
+                body : <p>Both payroll statements contain all names.</p>
+              })
+            }
+          }}/>
+        </div>
+      })
+    };
+
+    const showMissingNamesModal = () => {
+      showModal({
+        onSave(_): Promise<any> {
+          return Promise.resolve();
+        },
+        title : `Found ${missingNames.current.length} names that are not on new payroll.`,
+        body : <div>
+          <p>Verify the following employees are still employed:</p>
+          {missingNames.current.map(n => {
+            return <p>Name: <strong>{n}</strong></p>
+          })}
+        </div>
+      })
     };
 
     /* see example of a PDFSource below */
     const getPdfText = async (source: PDFSource): Promise<string> => {
-      Object.assign(window, {pdfjsWorker: PDFJS.PDFWorker}); // added to fit 2.3.0
+      Object.assign(window, { pdfjsWorker: PDFJS.PDFWorker }); // added to fit 2.3.0
       const pdf = await PDFJS.getDocument(source).promise;
       const maxPages = pdf.numPages;
       const pageTextPromises = [];
@@ -81,48 +133,68 @@ export const ImportPayrollStatement = (props: any) => {
 
     const exportMoneyFile = () => {
       const exporter = new ExportPayrollStatementService();
+      parsed.current!.name = name;
       parsed.current!.accountId = account!._id;
       parsed.current!.date = date;
+      dispatch(Event.SavePayrollStatement, parsed.current);
       exporter.exportStatement(parsed.current!);
       setDidExportMoney(true);
-    }
+    };
 
     const importIntoCheckbook = () => {
       parsed.current!.accountId = account!._id;
       parsed.current!.date = date;
-      dispatch(Event.ImportPayrollStatement, parsed.current!)
+      parsed.current!.name = name;
+      dispatch(Event.SavePayrollStatement, parsed.current);
+      dispatch(Event.ImportPayrollStatement, parsed.current!);
       setTimeout(() => {
         props.history.replace('/checkbook/' + account!._id);
-      }, 2000)
+      }, 2000);
     };
 
-    if(didExportMoney) {
-      return <div style={{padding : '1em'}}>
+    const compareAgainstLast = (statement : PayrollParseResult, compare : PayrollParseResult) => {
+      if(!compare) {
+        return;
+      }
+      const namesLast = new Set(compare.employees.map(w => w.name.trim().toLowerCase()));
+      const names = new Set(statement.employees.map(w => w.name.trim().toLowerCase()))
+      const missing = new Set<string>();
+      namesLast.forEach(name => {
+        if(!names.has(name)) {
+          missing.add(name);
+        }
+      });
+      missingNames.current = Array.from(missing);
+    }
+
+    if (didExportMoney) {
+      return <div style={{ padding: '1em' }}>
         <div>
           <div className="notification is-primary">
             <div className="header">
               Successfully exported money file..
             </div>
-            <p>Export Path: <strong>C:\Users\USERNAME\ExportedPayroll-{date}.qif</strong></p>
+            <p>Export Path: <strong>C:\Users\USERNAME\ExportedPayroll-{date}-NAME.qif</strong></p>
           </div>
-          <br />
+          <br/>
           <h2>Import instructions:</h2>
           <p><strong>Step 1: Open Microsoft Money</strong></p>
-          <img width="90%" height="525px" src={openMoney} />
-          <br /><br />
+          <img width="90%" height="525px" src={openMoney}/>
+          <br/><br/>
           <h3>
             <strong>Step 2:</strong> Select File -&gt; Import -&gt; Recover Accounts
           </h3>
-          <img src={recoverAccounts} height="525px" />
+          <img src={recoverAccounts} height="525px"/>
           <div className="notification is-danger">Make sure Recover Accounts is selected
             and NOT downloaded statements, it will mess up payroll if downloaded
-            statements is selected.</div>
+            statements is selected.
+          </div>
           <h3><strong>Step 1:</strong></h3>
           <p>
             Locate the exported file at the path written above.
             It will contain the date you selected as apart of the file name.
           </p>
-          <img src={findFile} height="525px" />
+          <img src={findFile} height="525px"/>
           <h3><strong>Step 4:</strong></h3>
           <p>
             Select the account you would like to import into.
@@ -131,16 +203,16 @@ export const ImportPayrollStatement = (props: any) => {
           </p>
           <p>If there is any other popups other than selecting an account
             just choose the default value.</p>
-          <br /><br /><br />
+          <br/><br/><br/>
         </div>
 
-      </div>
+      </div>;
     }
 
     if (didUpload) {
       return <div>
         <section>
-          <div className={"container"} style={{paddingTop: '1em', paddingBottom: '1em', paddingLeft: '.5em'}}>
+          <div className={'container'} style={{ paddingTop: '1em', paddingBottom: '1em', paddingLeft: '.5em' }}>
             <p>Total Gross: <strong>
               ${numberWithCommas(parsed.current!.totalGross.toFixed(2))}
             </strong></p>
@@ -153,17 +225,30 @@ export const ImportPayrollStatement = (props: any) => {
           </div>
         </section>
         <section>
-          <div className="container"  style={{paddingLeft: '.5em'}}>
+          <div className="container" style={{ paddingLeft: '.5em' }}>
             <div className="field">
+              <label className="label">Name For Import. This will be used
+              select previous payroll uploads to compare against.</label>
+              <div className="control">
+                <input className="input" required={true} type="text" placeholder="Name" value={name}
+                       onChange={e => setName(e.target.value)}/>
+                <span className="icon is-small is-left">
+          </span>
+              </div>
               <label className="label">Date For Import</label>
               <div className="control">
-                <input className="input" type="date" placeholder="Date" value={date} onChange={e => setDate(e.target.value)}/>
+                <input className="input" type="date" placeholder="Date" value={date}
+                       onChange={e => setDate(e.target.value)}/>
                 <span className="icon is-small is-left">
           </span>
               </div>
               <div className="buttons">
-                <button className={"button is-primary is-light"} disabled={date === ''} onClick={exportMoneyFile}>Export To Money File</button>
-                <button className={"button is-primary is-light"} disabled={date === ''} onClick={importIntoCheckbook}>Import Into Checkbook</button>
+                <button className={'button is-primary is-light'} disabled={date === '' || name === ''} onClick={exportMoneyFile}>Export
+                  To Money File
+                </button>
+                <button className={'button is-primary is-light'} disabled={date === '' || name === ''}
+                        onClick={importIntoCheckbook}>Import Into Checkbook
+                </button>
               </div>
             </div>
 
@@ -196,9 +281,53 @@ export const ImportPayrollStatement = (props: any) => {
 
           </div>
         </section>
-      </div>
+      </div>;
     }
 
+    if (!didUpload && parsed.current) {
+
+      return <div>
+        <section className="hero">
+          <div className="hero-body">
+            <div className="container">
+              <h1 className="title">
+                View Previous Payroll Upload
+              </h1>
+              <h2 className="subtitle">
+                Select an account and click View.
+              </h2>
+            </div>
+          </div>
+        </section>
+        <section>
+          <div className="container" style={{ paddingLeft: '1.5em', paddingBottom: '2em' }}>
+            <div className="field">
+              <label className="label">{account ? `Selected Account: ${account.name}` : 'Select An Account'}</label>
+              <div className="control">
+                <div className="select">
+                  <select onChange={(e) => {
+                    const index = accounts.findIndex(w => w._id === e.target.value);
+                    setAccount(accounts[index]);
+                  }}>
+                    {accounts.map(w => {
+                      return <option key={w._id} value={w._id}>{w.name}</option>;
+                    })}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="container" style={{ paddingLeft: '1.5em', paddingBottom: '2em' }}>
+          <button className={'button is-primary is-light'} onClick={() => {
+            setDidUpload(true);
+          }}>
+            View Statement
+          </button>
+        </div>
+      </div>;
+    }
 
     return <div>
 
@@ -216,13 +345,12 @@ export const ImportPayrollStatement = (props: any) => {
       </section>
 
       <section>
-        <div className="container" style={{paddingLeft: '1.5em', paddingBottom: '2em'}}>
+        <div className="container" style={{ paddingLeft: '1.5em', paddingBottom: '2em' }}>
           <div className="field">
             <label className="label">{account ? `Selected Account: ${account.name}` : 'Select An Account'}</label>
             <div className="control">
               <div className="select">
                 <select onChange={(e) => {
-                  console.log(e.target.value);
                   const index = accounts.findIndex(w => w._id === e.target.value);
                   setAccount(accounts[index]);
                 }}>
@@ -236,8 +364,9 @@ export const ImportPayrollStatement = (props: any) => {
         </div>
       </section>
 
+
       <section>
-        <div className="container" style={{paddingLeft: '1.5em', paddingBottom: '2em'}}>
+        <div className="container" style={{ paddingLeft: '1.5em', paddingBottom: '2em' }}>
           <div className="file">
             <label className="file-label">
               <input className="file-input" type="file" name="resume" onChange={onFileChange} accept={'.pdf'}/>
@@ -255,7 +384,7 @@ export const ImportPayrollStatement = (props: any) => {
       </section>
 
       {account && file && <section>
-        <div className="container" style={{paddingLeft: '1.5em', paddingBottom: '2em'}}>
+        <div className="container" style={{ paddingLeft: '1.5em', paddingBottom: '2em' }}>
           {!importing && <button className={'button is-primary is-light'} onClick={startImport}>
             Start Payroll Statement Import Into {account.name}
           </button>}
