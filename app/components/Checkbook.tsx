@@ -60,7 +60,7 @@ export default function Checkbook(props : any) {
       });
       entriesRef.current = obj;
       setEntriesLoaded(true);
-    })
+    });
     dispatch(Event.AllCheckbookEntries, accountId.current);
   }, [])
 
@@ -141,7 +141,7 @@ export default function Checkbook(props : any) {
       })
     }
 
-    if(loading && data.length === 0) {
+    if(loading.current && data.length === 0) {
       data.unshift({
         _id : uuid(),
         tag : 'Loading Data...',
@@ -154,7 +154,7 @@ export default function Checkbook(props : any) {
       return;
     }
 
-    if(!loading && data.length === 0) {
+    if(!loading.current && data.length === 0) {
       data.unshift({
         _id : uuid(),
         tag : '',
@@ -237,9 +237,28 @@ export default function Checkbook(props : any) {
 
     setTimeout(() => {
       let balance = 0;
+      let tags : any = {};
+      let payees : any = {};
       sortedValues.current.forEach(s => {
         balance += getFloatOrZero(s.credit)
         balance += getFloatOrZero(s.debit)
+
+        if(entry.tag && isNaN(parseFloat(entry.tag))) {
+          if (!tags[entry.tag]) {
+            tags[entry.tag] = 1;
+          } else {
+            tags[entry.tag] += 1;
+          }
+        }
+
+        if(entry.payee) {
+          if (!payees[entry.payee]) {
+            payees[entry.payee] = 1;
+          } else {
+            payees[entry.payee] += 1;
+          }
+        }
+
       });
       let rowId = -1;
       for(let i = 0; i < 10; i++) {
@@ -252,6 +271,7 @@ export default function Checkbook(props : any) {
       if(rowId != -1) {
         setDataAtCell(rowId, 'balance', balance);
       }
+      loadAutoCompletes(tags, payees);
     }, 100)
 
     dispatchEntryUpdateInstant();
