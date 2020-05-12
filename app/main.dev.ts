@@ -14,7 +14,6 @@ import log from 'electron-log';
 import MenuBuilder from './menu';
 import {dispatchToWindow, Event, EventMap} from "./events/events";
 import {ServiceRegistry} from "./services/infrastructure/serviceRegistry";
-import path from 'path';
 
 
 const { ipcMain } = require('electron')
@@ -69,6 +68,28 @@ const createWindow = async () => {
     }
   });
 
+  autoUpdater.on('checking-for-update', () => {
+    console.log('Checking for update...');
+  })
+  autoUpdater.on('update-available', (info) => {
+    console.log('Update available.', info);
+  })
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('Update not available.', info);
+  })
+  autoUpdater.on('error', (err) => {
+    console.log('Error in auto-updater. ' + err);
+  })
+  autoUpdater.on('download-progress', (progressObj) => {
+    let log_message = "Download speed: " + progressObj.bytesPerSecond;
+    log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
+    log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
+    console.log(log_message);
+  })
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('Update downloaded', info);
+  });
+
   mainWindow.loadURL(`file://${__dirname}/app.html`);
 
   // @TODO: Use 'ready-to-show' event
@@ -80,9 +101,8 @@ const createWindow = async () => {
     if (process.env.START_MINIMIZED) {
       mainWindow.minimize();
     } else {
-      //mainWindow.minimize();
       mainWindow.show();
-      //mainWindow.focus();
+      mainWindow.focus();
       //mainWindow.webContents.openDevTools({mode : 'detach'});
     }
   });
