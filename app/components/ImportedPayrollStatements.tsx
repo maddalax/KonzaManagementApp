@@ -50,7 +50,7 @@ export const ImportedPayrollStatements = (props : ImportedPayrollStatementsProps
               <td>{numberWithCommas(e.totalNet.toFixed(2))}</td>
               <td>{e.employees.length}</td>
               {!props.isModal && <td><button className={"button is-primary is-light"} onClick={() => view(e)}>View</button></td>}
-              {props.isModal && <td><button className={"button is-primary is-light"} onClick={() => props.onSelection!(e)}>Select</button></td>}
+              {props.isModal && <td><button className={"button is-primary is-light"} onClick={() => props.onSelection!(e)}>Compare</button></td>}
             </tr>
           </React.Fragment>;
         })}
