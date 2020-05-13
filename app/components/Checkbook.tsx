@@ -93,7 +93,8 @@ export default function Checkbook(props : any) {
 
     if(sortedValues.current.length === 0) {
       const values =  Object.values(entriesRef.current).filter(w => !w.isDeleted).filter(w => {
-        if(!w.tag && !w.payee && w.credit <= 0 && w.debit <= 0)  {
+        if(!w.tag && !w.payee && w.credit === 0 && w.debit === 0)  {
+          delete entriesRef.current[w._id];
           return false;
         }
         return true;
@@ -134,8 +135,8 @@ export default function Checkbook(props : any) {
         tag: entry.tag,
         date: entry.date,
         payee: entry.payee,
-        credit: entry.credit === -1 ? null : entry.credit,
-        debit: entry.debit === -1 ? null : entry.debit,
+        credit: entry.credit === 0 ? null : entry.credit,
+        debit: entry.debit === 0 ? null : entry.debit,
         balance : balance,
         status : entry.status === CheckbookEntryStatus.Reconciled ? 'R' : '',
       })
@@ -235,7 +236,7 @@ export default function Checkbook(props : any) {
       entriesRef.current[change.rowId] = {
         accountId: accountId.current,
         status: CheckbookEntryStatus.None,
-        balance: 0, credit: -1, date: currentDate(), timestamp : currentTimestamp(), debit: -1, _id: change.rowId, payee: "", tag: "",
+        balance: 0, credit: 0, date: currentDate(), timestamp : currentTimestamp(), debit: 0, _id: change.rowId, payee: "", tag: "",
         isNew : true, index : hotTable.current!.countRows()
       }
     }
@@ -399,16 +400,31 @@ export default function Checkbook(props : any) {
       'pay' : 'Payroll'
     }
 
+    const column = changes[0][1];
     const newValue = changes[0][3];
-    console.log('new value', newValue)
     if(newValue != null && typeof newValue === 'string' && map[newValue.toString().toLowerCase()]) {
       changes[0][3] = map[newValue.toString().toLowerCase()];
       return;
     }
 
-    if(changes[0][1] === 'date') {
+    if(column === 'date') {
       changes[0][3] = parseDate(newValue);
-      console.log('new date', changes[0][3]);
+    }
+
+    if(column === 'debit') {
+      let parsed = getFloatOrZero(newValue);
+      if(parsed > 0) {
+        parsed = parsed * -1;
+      }
+      changes[0][3] = parsed;
+    }
+
+    if(column === 'credit') {
+      let parsed = getFloatOrZero(newValue);
+      if(parsed < 0) {
+        parsed = parsed * -1;
+      }
+      changes[0][3] = parsed;
     }
 
   };
@@ -416,7 +432,6 @@ export default function Checkbook(props : any) {
   const [removeRows] = useDebouncedCallback(() => {
     const rows : Set<number> = new Set<number>();
     const selected = hotTable.current!.getSelected()!;
-    console.log(selected);
     selected.forEach((s) => {
       const start = s[0];
       const end = s[2];
