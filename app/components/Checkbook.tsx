@@ -97,6 +97,8 @@ export default function Checkbook(props : any) {
       sortedValues.current = values;
     }
 
+    console.log("SORTED VALUES", sortedValues);
+
     let balance = 0;
     let tags : any = {};
     let payees : any = {};
@@ -134,6 +136,16 @@ export default function Checkbook(props : any) {
       })
     });
     data = data.reverse();
+
+    const newRowIndex = data.findIndex(w => w._id === newRowId.current);
+    if(newRowIndex !== 0) {
+      const newRow = data[newRowIndex];
+      if(newRow) {
+        data.splice(newRowIndex, 1);
+        data.unshift(newRow);
+      }
+    }
+
     // Push an empty row.
     if(data[0] && (data[0].credit != null || data[0].debit != null)) {
       console.log('pushing empty row', data[0])
@@ -148,6 +160,7 @@ export default function Checkbook(props : any) {
     }
 
     if(loading.current && data.length === 0) {
+      console.log('pushing loading data');
       data.unshift({
         _id : uuid(),
         tag : 'Loading Data...',
@@ -172,15 +185,6 @@ export default function Checkbook(props : any) {
       });
       hotTable.current!.loadData(data);
       return;
-    }
-
-    const newRowIndex = data.findIndex(w => w._id === newRowId.current);
-    if(newRowIndex !== 0) {
-      const newRow = data[newRowIndex];
-      if(newRow) {
-        //data.splice(newRowIndex, 1);
-        //data.unshift(newRow);
-      }
     }
 
     hotTable.current!.loadData(data);
@@ -222,10 +226,11 @@ export default function Checkbook(props : any) {
     changedRowId.current = change.rowId;
 
     if (!entriesRef.current[change.rowId]) {
+      console.log('adding entry to entries ref', change);
       entriesRef.current[change.rowId] = {
         accountId: accountId.current,
         status: CheckbookEntryStatus.None,
-        balance: 0, credit: 0, date: currentDate(), timestamp : currentTimestamp(), debit: 0, _id: change.rowId, payee: "", tag: "",
+        balance: 0, credit: -1, date: currentDate(), timestamp : currentTimestamp(), debit: -1, _id: change.rowId, payee: "", tag: "",
         isNew : true, index : hotTable.current!.countRows()
       }
     }
@@ -260,22 +265,13 @@ export default function Checkbook(props : any) {
   const addNewEntry = (entry : CheckbookEntry) => {
     console.log('add new entry', entry);
     setDataAtCell(0, '_id', entry._id);
-    sortedValues.current.unshift(entry)
+    console.log('adding entry to sorted values', sortedValues);
+    sortedValues.current.unshift(JSON.parse(JSON.stringify(entry)))
     hotTable.current!.alter('insert_row', 0);
     hotTable.current!.selectCell(0, 1);
     setDataAtCell(0, 'date', currentDate());
     newRowId.current = uuid();
     setDataAtCell(0, '_id', newRowId.current);
-    /*
-    sortedValues.current.unshift({
-      accountId: accountId.current,
-      status: CheckbookEntryStatus.None,
-      balance: 0, credit: -1, date: currentDate(), timestamp : currentTimestamp(), debit: -1,
-      _id: newRowId.current, payee: "", tag: "",
-      isNew : true, index : 0
-    })
-
-     */
 
 
     setTimeout(() => {
@@ -315,6 +311,7 @@ export default function Checkbook(props : any) {
         setDataAtCell(rowId, 'balance', balance);
       }
       loadAutoCompletes(tags, payees);
+      console.log('sorted values', sortedValues);
     }, 100)
 
     dispatchEntryUpdateInstant();
