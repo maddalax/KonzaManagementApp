@@ -92,7 +92,12 @@ export default function Checkbook(props : any) {
     let data: any[] = [];
 
     if(sortedValues.current.length === 0) {
-      const values =  Object.values(entriesRef.current).filter(w => !w.isDeleted);
+      const values =  Object.values(entriesRef.current).filter(w => !w.isDeleted).filter(w => {
+        if(!w.tag && !w.payee && w.credit <= 0 && w.debit <= 0)  {
+          return false;
+        }
+        return true;
+      })
       values.sort((a, b) => a.timestamp - b.timestamp);
       sortedValues.current = values;
     }
