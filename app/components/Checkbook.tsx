@@ -8,6 +8,7 @@ import {useDebouncedCallback} from 'use-debounce';
 import {currentDate, currentTimestamp, formatDate, parseDate, timestamp} from '../utils/dateUtil';
 import {getFloatOrZero} from '../utils/checkbookUtil';
 import {showModal} from "./Modal";
+import { ErrorBoundary } from '../containers/ErrorBoundary';
 
 const { dialog } = require('electron').remote
 
@@ -30,6 +31,8 @@ export default function Checkbook(props : any) {
   const payees = useRef<string[]>([]);
   const sortedValues = useRef<CheckbookEntry[]>([]);
   const loading = useRef<boolean>(true);
+  const newRowId = useRef<string>('');
+  const changedRowId = useRef<string>('');
 
   const dispatchEntryUpdateInstant = () => {
     const toSave : CheckbookEntry[] = [];
@@ -84,6 +87,8 @@ export default function Checkbook(props : any) {
     if(!hotTable.current || hotTable.current.isDestroyed) {
      return;
     }
+    console.log('load entries')
+
     let data: any[] = [];
 
     if(sortedValues.current.length === 0) {
@@ -122,8 +127,8 @@ export default function Checkbook(props : any) {
         tag: entry.tag,
         date: entry.date,
         payee: entry.payee,
-        credit: entry.credit,
-        debit: entry.debit,
+        credit: entry.credit === -1 ? null : entry.credit,
+        debit: entry.debit === -1 ? null : entry.debit,
         balance : balance,
         status : entry.status === CheckbookEntryStatus.Reconciled ? 'R' : '',
       })
@@ -131,6 +136,7 @@ export default function Checkbook(props : any) {
     data = data.reverse();
     // Push an empty row.
     if(data[0] && (data[0].credit != null || data[0].debit != null)) {
+      console.log('pushing empty row', data[0])
       data.unshift({
         _id : uuid(),
         tag : '',
@@ -155,6 +161,7 @@ export default function Checkbook(props : any) {
     }
 
     if(!loading.current && data.length === 0) {
+      console.log('pushing empty row no data')
       data.unshift({
         _id : uuid(),
         tag : '',
@@ -167,12 +174,32 @@ export default function Checkbook(props : any) {
       return;
     }
 
+    const newRowIndex = data.findIndex(w => w._id === newRowId.current);
+    if(newRowIndex !== 0) {
+      const newRow = data[newRowIndex];
+      if(newRow) {
+        //data.splice(newRowIndex, 1);
+        //data.unshift(newRow);
+      }
+    }
+
     hotTable.current!.loadData(data);
     loadAutoCompletes(tags, payees);
 
     if(setSelection) {
       hotTable.current!.selectCell(0, 1);
+      return;
     }
+
+    if(changedRowId.current) {
+      const changedCellIndex = data.findIndex(w => w._id === changedRowId.current)
+      console.log('ccell index', changedCellIndex);
+      if(changedCellIndex != -1) {
+        hotTable.current!.selectCell(changedCellIndex, 2);
+
+      }
+    }
+
   };
 
 
@@ -191,6 +218,8 @@ export default function Checkbook(props : any) {
     if(change.column === '_id') {
       return;
     }
+
+    changedRowId.current = change.rowId;
 
     if (!entriesRef.current[change.rowId]) {
       entriesRef.current[change.rowId] = {
@@ -229,11 +258,25 @@ export default function Checkbook(props : any) {
   };
 
   const addNewEntry = (entry : CheckbookEntry) => {
-    setDataAtCell(0, 'id', entry._id);
+    console.log('add new entry', entry);
+    setDataAtCell(0, '_id', entry._id);
     sortedValues.current.unshift(entry)
     hotTable.current!.alter('insert_row', 0);
     hotTable.current!.selectCell(0, 1);
     setDataAtCell(0, 'date', currentDate());
+    newRowId.current = uuid();
+    setDataAtCell(0, '_id', newRowId.current);
+    /*
+    sortedValues.current.unshift({
+      accountId: accountId.current,
+      status: CheckbookEntryStatus.None,
+      balance: 0, credit: -1, date: currentDate(), timestamp : currentTimestamp(), debit: -1,
+      _id: newRowId.current, payee: "", tag: "",
+      isNew : true, index : 0
+    })
+
+     */
+
 
     setTimeout(() => {
       let balance = 0;
@@ -262,7 +305,7 @@ export default function Checkbook(props : any) {
       });
       let rowId = -1;
       for(let i = 0; i < 10; i++) {
-        const id = getDataAtCell(i, "id");
+        const id = getDataAtCell(i, "_id");
         if(id === entry._id) {
           rowId = i;
           break;
@@ -411,30 +454,34 @@ export default function Checkbook(props : any) {
           }}
           outsideClickDeselects={false}
           afterChange={(changes, source) => {
-            if (source == 'edit' && changes) {
-              const change = changes[0];
-              const row = change[0];
-              const column = change[1].toString();
-              const oldValue = change[2];
-              const newValue = change[3];
+            try {
+              if (source == 'edit' && changes) {
+                const change = changes[0];
+                const row = change[0];
+                const column = change[1].toString();
+                const oldValue = change[2];
+                const newValue = change[3];
 
-              let id = getDataAtCell(row, '_id');
-              if (!id) {
-                id = uuid();
-                setDataAtCell(row, '_id', id)
+                let id = getDataAtCell(row, '_id');
+                if (!id) {
+                  id = uuid();
+                  setDataAtCell(row, '_id', id)
+                }
+
+                if (oldValue === newValue) {
+                  return;
+                }
+
+                onCellChange({
+                  rowId: id,
+                  row,
+                  column,
+                  oldValue,
+                  newValue
+                });
               }
-
-              if(oldValue === newValue) {
-                return;
-              }
-
-              onCellChange({
-                rowId: id,
-                row,
-                column,
-                oldValue,
-                newValue
-              });
+            } catch (e) {
+              ErrorBoundary.showErrorModal(e);
             }
           }}
           columns={[

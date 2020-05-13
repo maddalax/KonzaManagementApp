@@ -9,6 +9,7 @@ import {CheckbookAccounts} from "../components/CheckbookAccounts";
 import { ImportBankStatement } from '../components/ImportBankStatement';
 import { ImportPayrollStatement } from '../components/ImportPayrollStatement';
 import { ImportedPayrollStatements } from '../components/ImportedPayrollStatements';
+import { ErrorBoundary } from './ErrorBoundary';
 
 const Root =() => {
 
@@ -19,22 +20,24 @@ const Root =() => {
   }, [])
 
   return <div>
-    <HashRouter>
-      <div className="columns is-gapless">
-        <div className="column is-one-fifth">
-          <Sidebar/>
+      <HashRouter>
+        <ErrorBoundary>
+        <div className="columns is-gapless">
+          <div className="column is-one-fifth">
+            <Sidebar/>
+          </div>
+          <div className="column">
+            <Route path={"/"} exact component={HomePage} />
+            <Route path={"/checkbook"} exact component={CheckbookAccounts} />
+            <Route path={"/checkbook/:id"} exact component={Checkbook} />
+            <Route path={"/import"} exact component={ImportMoneyFile} />
+            <Route path={"/import/bank"} exact component={ImportBankStatement} />
+            <Route path={"/import/payroll"} exact component={ImportPayrollStatement} />
+            <Route path={"/payroll/list"} exact component={ImportedPayrollStatements} />
+          </div>
         </div>
-        <div className="column">
-          <Route path={"/"} exact component={HomePage} />
-          <Route path={"/checkbook"} exact component={CheckbookAccounts} />
-          <Route path={"/checkbook/:id"} exact component={Checkbook} />
-          <Route path={"/import"} exact component={ImportMoneyFile} />
-          <Route path={"/import/bank"} exact component={ImportBankStatement} />
-          <Route path={"/import/payroll"} exact component={ImportPayrollStatement} />
-          <Route path={"/payroll/list"} exact component={ImportedPayrollStatements} />
-        </div>
-      </div>
-    </HashRouter>
+        </ErrorBoundary>
+      </HashRouter>
   </div>
 }
 
