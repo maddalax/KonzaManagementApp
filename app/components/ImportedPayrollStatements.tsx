@@ -44,7 +44,7 @@ export const ImportedPayrollStatements = (props : ImportedPayrollStatementsProps
         </thead>
         <tbody>
         {statements.current.map((e) => {
-          return <React.Fragment key={e.date}>
+          return <React.Fragment key={`${e.name}-${e.date}`}>
             <tr key={e.date}>
               <td>{e.date}</td>
               <td>{e.name}</td>

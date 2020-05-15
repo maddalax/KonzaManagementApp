@@ -6,7 +6,7 @@ import {CheckbookEntry, CheckbookEntryStatus} from '../entities/checkbook/Checkb
 import {uuid} from 'uuidv4';
 import {useDebouncedCallback} from 'use-debounce';
 import {currentDate, currentTimestamp, formatDate, parseDate, timestamp} from '../utils/dateUtil';
-import {getFloatOrZero, numberWithCommas} from '../utils/checkbookUtil';
+import {getFloatOrZero} from '../utils/checkbookUtil';
 import {showModal} from "./Modal";
 import { ErrorBoundary } from '../containers/ErrorBoundary';
 import toastr from 'toastr';
@@ -26,6 +26,8 @@ interface CellEditChange {
 export default function Checkbook(props : any) {
   const hotTable = useRef<Handsontable>();
   const entriesRef = useRef<{ [key: string]: CheckbookEntry }>({});
+  const lastChanges = useRef<CheckbookEntry[][]>([])
+
   const [entriesLoaded, setEntriesLoaded] = useState(false);
   const unsavedIds = useRef<{[key : string] : string}>({});
   const accountId = useRef<string>('');
@@ -52,6 +54,13 @@ export default function Checkbook(props : any) {
     dispatch(Event.SaveCheckbookEntry, toSave);
     toSave.forEach(t => entriesRef.current[t._id].isNew = false);
   };
+
+  const addToLastChanges = (entries : CheckbookEntry[]) => {
+    lastChanges.current.unshift(entries);
+    if(lastChanges.current.length > 100) {
+      lastChanges.current.splice(lastChanges.current.length - 1, 1);
+    }
+  }
 
   const [dispatchEntryUpdate] = useDebouncedCallback(dispatchEntryUpdateInstant, 1000
   );
@@ -228,7 +237,6 @@ export default function Checkbook(props : any) {
     }
     tags.current = sort(tagsObj);
     payees.current = sort(payeesObj);
-    console.log('PAYEES REF', payeeIsDebitRef)
   }, 300);
 
   const onCellChange = (change: CellEditChange) => {
@@ -249,6 +257,13 @@ export default function Checkbook(props : any) {
     }
 
     let entry = entriesRef.current[change.rowId];
+
+    const before = [JSON.parse(JSON.stringify(entry))];
+
+    if(change.row !== 0 && change.column !== 'balance') {
+      addToLastChanges(before)
+    }
+
     entry = setPropertyFromColumn(entry, change);
     entriesRef.current[change.rowId] = entry;
     unsavedIds.current[change.rowId] = entry._id;
@@ -363,7 +378,6 @@ export default function Checkbook(props : any) {
       loadAutoCompletes(tags, payees);
     }, 100)
 
-    console.log('debit refs', payeeIsDebitRef)
     dispatchEntryUpdateInstant();
 
   };
@@ -386,11 +400,14 @@ export default function Checkbook(props : any) {
     if(confirm !== 0) {
       return false;
     }
+    const lastUpdates : CheckbookEntry[] = [];
     rows.forEach(r => {
       const id = hotTable.current!.getDataAtCell(r, 0);
+      lastUpdates.push(JSON.parse(JSON.stringify(entriesRef.current[id])));
       entriesRef.current[id].isDeleted = true;
       unsavedIds.current[id] = id;
     });
+    addToLastChanges(lastUpdates);
     sortedValues.current = [];
     toastr.success(`Successfully deleted ${rows.size} row(s).`, '', {
       "positionClass": "toast-bottom-right",
@@ -438,8 +455,6 @@ export default function Checkbook(props : any) {
     if(source !== 'edit') {
       return;
     }
-
-    console.log('beofre change')
 
     const map : any = {
       'p' : 'Payroll',
@@ -552,19 +567,33 @@ export default function Checkbook(props : any) {
           }}
           outsideClickDeselects={false}
           beforeKeyDown={(e) => {
-            if(e.key === 'Delete') {
+            if(e.ctrlKey && e.key === 'z') {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              const last = lastChanges.current.splice(0, 1)[0];
+              if(last) {
+                last.forEach(l => {
+                  unsavedIds.current[l._id] = l._id;
+                  entriesRef.current[l._id] = l;
+                  sortedValues.current = [];
+                });
+                dispatchEntryUpdateInstant();
+                loadEntriesIntoTable();
+                toastr.success(`Successfully reverted ${last.length} record(s).`, '', {
+                  "positionClass": "toast-bottom-right",
+                  "timeOut": "3000",
+                  "showDuration": "0",
+                })
+              }
+            }
+            else if(e.key === 'Delete') {
               const selection = hotTable.current!.getSelected();
               if(!selection) {
                 return;
               }
-              const start = selection[0][1];
-              const end = selection[0][3];
-              // entire row selected
-              if(start === 1 && end === 6 || start === 6 && end === 1 || start === 7 && end === 1 || start === 1 && end === 7) {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                removeRows();
-              }
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              removeRows();
             }
           }}
           afterDocumentKeyDown={(e) => {
@@ -580,7 +609,6 @@ export default function Checkbook(props : any) {
             const row = selected[0][0];
             const column = selected[0][3];
 
-            console.log(row, column);
             if(column === 3) {
               const tag = getDataAtCell(row, 'tag');
               const payee = getDataAtCell(row, 'payee');
@@ -674,6 +702,7 @@ export default function Checkbook(props : any) {
                     title : 'Add Memo To Entry',
                     inputs : [{name : 'memo', placeholder : 'Enter Memo', value : entry.memo}],
                     onSave : (values) => {
+                      addToLastChanges([JSON.parse(JSON.stringify(entriesRef.current[id]))])
                       entriesRef.current[id].memo = values["memo"];
                       unsavedIds.current[id] = id;
                       dispatchEntryUpdateInstant()
