@@ -19,7 +19,6 @@ export enum Event {
 }
 
 export function dispatch(event : Event, ...args : any[]) {
-  console.log('Dispatching', Event[event].toString(), args);
   ipcRenderer.send(Event[event].toString(), args)
 }
 
@@ -35,7 +34,6 @@ export function registerRenderer(event : Event, callback : (e : Electron.IpcRend
 }
 
 export function dispatchToWindow(window : Electron.BrowserWindow, event : Event, ...args : any[]) {
-  console.log('Dispatching to window', Event[event].toString(), args);
   const key = Event[event].toString();
   window.webContents.send(key, args);
 }

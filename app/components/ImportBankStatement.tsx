@@ -23,7 +23,6 @@ export const ImportBankStatement = (props: any) => {
         setAccount(args[0][0]);
       });
       registerRendererOnce(Event.ImportMoneyRecord, () => {
-        console.log('complete');
         props.history.replace('/checkbook');
       });
       dispatch(Event.AllCheckbookAccounts);
@@ -101,7 +100,6 @@ export const ImportBankStatement = (props: any) => {
             <div className="control">
               <div className="select">
                 <select onChange={(e) => {
-                  console.log(e.target.value);
                   const index = accounts.findIndex(w => w._id === e.target.value);
                   setAccount(accounts[index]);
                 }}>

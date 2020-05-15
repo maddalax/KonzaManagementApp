@@ -11,12 +11,10 @@ export const ImportMoneyFile = (props : any) => {
 
   useEffect(() => {
     registerRendererOnce(Event.AllCheckbookAccounts, (_, args: any[]) => {
-      console.log(args);
       setAccounts(args[0])
       setAccount(args[0][0])
     })
     registerRendererOnce(Event.ImportMoneyRecord, () => {
-      console.log('complete');
       props.history.replace('/checkbook')
     })
     dispatch(Event.AllCheckbookAccounts);
@@ -75,7 +73,6 @@ export const ImportMoneyFile = (props : any) => {
           <div className="control">
             <div className="select">
               <select onChange={(e) => {
-                console.log(e.target.value);
                 const index = accounts.findIndex(w => w._id === e.target.value);
                 setAccount(accounts[index]);
               }}>

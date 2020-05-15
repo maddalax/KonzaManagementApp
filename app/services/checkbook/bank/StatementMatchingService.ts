@@ -43,8 +43,6 @@ export class StatementMatchingService {
       m.entries = this.filterByEntry(m);
     }
 
-    console.log(this.matches);
-
     return this.matches;
   }
 
@@ -107,7 +105,6 @@ export class StatementMatchingService {
     if(matches.length === 0)
     {
       if(entry.amount <= 75) {
-        console.log('RANGE 40', range40);
         const min40Filter = this.getFilteredEntries().filter(w => this.inRangeAndAmount(w, entry, entry.amount, range40));
         min40Filter.sort((a, b) => a.credit === 0 ? a.debit - b.debit : a.credit - b.credit);
         return min40Filter;

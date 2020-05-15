@@ -6,9 +6,11 @@ import {CheckbookEntry, CheckbookEntryStatus} from '../entities/checkbook/Checkb
 import {uuid} from 'uuidv4';
 import {useDebouncedCallback} from 'use-debounce';
 import {currentDate, currentTimestamp, formatDate, parseDate, timestamp} from '../utils/dateUtil';
-import {getFloatOrZero} from '../utils/checkbookUtil';
+import {getFloatOrZero, numberWithCommas} from '../utils/checkbookUtil';
 import {showModal} from "./Modal";
 import { ErrorBoundary } from '../containers/ErrorBoundary';
+import toastr from 'toastr';
+
 
 const { dialog } = require('electron').remote
 
@@ -29,6 +31,8 @@ export default function Checkbook(props : any) {
   const accountId = useRef<string>('');
   const tags = useRef<string[]>([]);
   const payees = useRef<string[]>([]);
+  const payeeIsDebitRef = useRef<{[key : string] : number}>({})
+  const tagIsDebitRef = useRef<{[key : string] : number}>({})
   const sortedValues = useRef<CheckbookEntry[]>([]);
   const loading = useRef<boolean>(true);
   const newRowId = useRef<string>('');
@@ -87,7 +91,6 @@ export default function Checkbook(props : any) {
     if(!hotTable.current || hotTable.current.isDestroyed) {
      return;
     }
-    console.log('load entries')
 
     let data: any[] = [];
 
@@ -103,8 +106,6 @@ export default function Checkbook(props : any) {
       sortedValues.current = values;
     }
 
-    console.log("SORTED VALUES", sortedValues);
-
     let balance = 0;
     let tags : any = {};
     let payees : any = {};
@@ -114,16 +115,21 @@ export default function Checkbook(props : any) {
       if(entry.tag && isNaN(parseFloat(entry.tag))) {
         if (!tags[entry.tag]) {
           tags[entry.tag] = 1;
+          tagIsDebitRef.current[entry.payee] = entry.debit < 0 ? 1 : -1
+
         } else {
           tags[entry.tag] += 1;
+          tagIsDebitRef.current[entry.payee] += entry.debit < 0 ? 1 : -1
         }
       }
 
       if(entry.payee) {
         if (!payees[entry.payee]) {
           payees[entry.payee] = 1;
+          payeeIsDebitRef.current[entry.payee] = entry.debit < 0 ? 1 : -1
         } else {
           payees[entry.payee] += 1;
+          payeeIsDebitRef.current[entry.payee] += entry.debit < 0 ? 1 : -1
         }
       }
 
@@ -141,6 +147,7 @@ export default function Checkbook(props : any) {
         status : entry.status === CheckbookEntryStatus.Reconciled ? 'R' : '',
       })
     });
+
     data = data.reverse();
 
     const newRowIndex = data.findIndex(w => w._id === newRowId.current);
@@ -154,7 +161,6 @@ export default function Checkbook(props : any) {
 
     // Push an empty row.
     if(data[0] && (data[0].credit != null || data[0].debit != null)) {
-      console.log('pushing empty row', data[0])
       data.unshift({
         _id : uuid(),
         tag : '',
@@ -166,7 +172,6 @@ export default function Checkbook(props : any) {
     }
 
     if(loading.current && data.length === 0) {
-      console.log('pushing loading data');
       data.unshift({
         _id : uuid(),
         tag : 'Loading Data...',
@@ -180,7 +185,6 @@ export default function Checkbook(props : any) {
     }
 
     if(!loading.current && data.length === 0) {
-      console.log('pushing empty row no data')
       data.unshift({
         _id : uuid(),
         tag : '',
@@ -197,21 +201,24 @@ export default function Checkbook(props : any) {
     loadAutoCompletes(tags, payees);
 
     if(setSelection) {
-      hotTable.current!.selectCell(0, 1);
+      const selected = hotTable.current!.getSelected();
+      if(selected) {
+        const row = selected[0][0];
+        if(row <= 1) {
+          hotTable.current!.selectCell(0, 1);
+        }
+      }
       return;
     }
 
     if(changedRowId.current) {
       const changedCellIndex = data.findIndex(w => w._id === changedRowId.current)
-      console.log('ccell index', changedCellIndex);
       if(changedCellIndex != -1) {
         hotTable.current!.selectCell(changedCellIndex, 2);
-
       }
     }
 
   };
-
 
   const [loadAutoCompletes] = useDebouncedCallback((tagsObj : any, payeesObj : any) => {
     const sort = (obj : any) => {
@@ -221,6 +228,7 @@ export default function Checkbook(props : any) {
     }
     tags.current = sort(tagsObj);
     payees.current = sort(payeesObj);
+    console.log('PAYEES REF', payeeIsDebitRef)
   }, 300);
 
   const onCellChange = (change: CellEditChange) => {
@@ -232,7 +240,6 @@ export default function Checkbook(props : any) {
     changedRowId.current = change.rowId;
 
     if (!entriesRef.current[change.rowId]) {
-      console.log('adding entry to entries ref', change);
       entriesRef.current[change.rowId] = {
         accountId: accountId.current,
         status: CheckbookEntryStatus.None,
@@ -250,9 +257,30 @@ export default function Checkbook(props : any) {
       entry = fixAutoComplete(entry);
     }
 
+    if(change.column === 'payee' && isDebit(getDataAtCell(change.row, 'tag'), change.newValue)) {
+      hotTable.current!.selectCell(change.row, 5);
+    }
+
     dispatchEntryUpdate();
 
-    console.log(change);
+    const tag = getDataAtCell(change.row, 'tag');
+    const payee = getDataAtCell(change.row, 'payee');
+    const debit = isDebit(tag, payee);
+    let errored = false;
+    if(debit && change.column === 'credit' && change.newValue != 0) {
+      toastr.error(`You entered a credit for a payee or tag that is usually a debit. Please make sure this is correct.`, `Ensure Credit Change For Row ${change.row}`, {
+        timeOut : 0,
+        "closeButton": true,
+      })
+      errored = true;
+    }
+    else if(!debit && change.column === 'debit' && change.newValue != 0) {
+      toastr.error(`You entered a debit for a payee or tag that is usually a credit. Please make sure this is correct.`, `Ensure Debit Change For Row ${change.row}`, {
+        timeOut : 0,
+        "closeButton": true,
+      })
+      errored = true;
+    }
 
     // Re-calculate balance due to date being changed.
     if(change.column === 'date' && (entry.credit || entry.debit)) {
@@ -266,12 +294,22 @@ export default function Checkbook(props : any) {
       change.row === 0 ? addNewEntry(entry) : onAmountChange(true);
     }
 
+    if(!errored && change.row > 1) {
+      showSuccess();
+    }
+
   };
 
+  const [showSuccess] = useDebouncedCallback(() => {
+    toastr.success('Successfully updated record.', '', {
+      "positionClass": "toast-bottom-right",
+      "timeOut": "3000",
+      "showDuration": "0",
+    })
+  }, 300)
+
   const addNewEntry = (entry : CheckbookEntry) => {
-    console.log('add new entry', entry);
     setDataAtCell(0, '_id', entry._id);
-    console.log('adding entry to sorted values', sortedValues);
     sortedValues.current.unshift(JSON.parse(JSON.stringify(entry)))
     hotTable.current!.alter('insert_row', 0);
     hotTable.current!.selectCell(0, 1);
@@ -282,25 +320,31 @@ export default function Checkbook(props : any) {
 
     setTimeout(() => {
       let balance = 0;
-      let tags : any = {};
+      let tags : any = {}
       let payees : any = {};
       sortedValues.current.forEach(s => {
         balance += getFloatOrZero(s.credit)
         balance += getFloatOrZero(s.debit)
 
-        if(entry.tag && isNaN(parseFloat(entry.tag))) {
-          if (!tags[entry.tag]) {
-            tags[entry.tag] = 1;
+        if(s.tag && isNaN(parseFloat(s.tag))) {
+          if (!tags[s.tag]) {
+            tags[s.tag] = 1;
+            tagIsDebitRef.current[s.payee] = s.debit < 0 ? 1 : -1
           } else {
-            tags[entry.tag] += 1;
+            tags[s.tag] += 1;
+            tagIsDebitRef.current[s.payee] += s.debit < 0 ? 1 : -1
           }
         }
 
-        if(entry.payee) {
-          if (!payees[entry.payee]) {
-            payees[entry.payee] = 1;
+        if(s.payee) {
+          if (!payees[s.payee]) {
+            payees[s.payee] = 1;
+            payeeIsDebitRef.current[s.payee] = s.debit < 0 ? 1 : -1
+
           } else {
-            payees[entry.payee] += 1;
+            payees[s.payee] += 1;
+            payeeIsDebitRef.current[s.payee] += s.debit < 0 ? 1 : -1
+
           }
         }
 
@@ -317,9 +361,9 @@ export default function Checkbook(props : any) {
         setDataAtCell(rowId, 'balance', balance);
       }
       loadAutoCompletes(tags, payees);
-      console.log('sorted values', sortedValues);
     }, 100)
 
+    console.log('debit refs', payeeIsDebitRef)
     dispatchEntryUpdateInstant();
 
   };
@@ -348,13 +392,17 @@ export default function Checkbook(props : any) {
       unsavedIds.current[id] = id;
     });
     sortedValues.current = [];
+    toastr.success(`Successfully deleted ${rows.size} row(s).`, '', {
+      "positionClass": "toast-bottom-right",
+      "timeOut": "3000",
+      "showDuration": "0",
+    })
     dispatchEntryUpdateInstant();
     loadEntriesCallback(false);
     return true;
   };
 
   const setPropertyFromColumn = (entry: CheckbookEntry, change: CellEditChange) : CheckbookEntry => {
-    console.log(change);
     switch (change.column) {
       case 'tag':
         entry.tag = change.newValue;
@@ -390,6 +438,8 @@ export default function Checkbook(props : any) {
     if(source !== 'edit') {
       return;
     }
+
+    console.log('beofre change')
 
     const map : any = {
       'p' : 'Payroll',
@@ -439,12 +489,44 @@ export default function Checkbook(props : any) {
         rows.add(i);
       }
     })
-    console.log('selected rows', rows);
-    rows.forEach(r => {
-      console.log('Tag', r, hotTable.current!.getDataAtCell(r, 1));
-    })
     onDelete(rows);
   }, 100)
+
+  const isDebit = (tag : string, payee : string) => {
+    tag = tag ? tag.toString().toLowerCase().trim() : tag;
+    payee = payee ? payee.toString().toLowerCase().trim() : payee;
+    if(!tag && !payee) {
+      return false;
+    }
+
+    // If there have been more negative transactions than positive ones for this payee, it will be
+    // a positive number, so we can assume its a debit
+    let debitRefValue = payeeIsDebitRef.current[payee];
+    if(debitRefValue && debitRefValue > 0) {
+      return true;
+    }
+
+    debitRefValue = tagIsDebitRef.current[tag];
+    if(debitRefValue && debitRefValue > 0) {
+      return true;
+    }
+
+    if(tag === 'debit' || payee === 'payroll' || !isNaN(parseInt(tag))) {
+      return true;
+    }
+    // Iterate last 10 values to try to find match and check debit.
+    for(let i = 0; i < 10; i++) {
+      const val = sortedValues.current[i];
+      if(tag && val.tag === tag) {
+        return val.debit < 0;
+      }
+      if(tag && val.payee === payee) {
+        return val.debit < 0;
+      }
+    }
+
+    return false;
+  };
 
   return (
     <React.Fragment>
@@ -462,7 +544,6 @@ export default function Checkbook(props : any) {
           colHeaders={['Id', 'Tag', 'Date', 'Payee', 'Credit', 'Debit', 'Balance', 'S']}
           colWidths={[1, 25, 25, 50, 25, 25, 25, 7]}
           beforeChange={(changes, source) => {
-            console.log(changes, source);
             beforeChange(changes, source);
           }}
           beforeRemoveRow={_ => {
@@ -470,6 +551,44 @@ export default function Checkbook(props : any) {
             return false;
           }}
           outsideClickDeselects={false}
+          beforeKeyDown={(e) => {
+            if(e.key === 'Delete') {
+              const selection = hotTable.current!.getSelected();
+              if(!selection) {
+                return;
+              }
+              const start = selection[0][1];
+              const end = selection[0][3];
+              // entire row selected
+              if(start === 1 && end === 6 || start === 6 && end === 1 || start === 7 && end === 1 || start === 1 && end === 7) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                removeRows();
+              }
+            }
+          }}
+          afterDocumentKeyDown={(e) => {
+            let selected = hotTable.current!.getSelected();
+            if(!selected) {
+              return;
+            }
+
+            if(e.key !== "Tab" && e.key !== "ArrowRight") {
+              return;
+            }
+
+            const row = selected[0][0];
+            const column = selected[0][3];
+
+            console.log(row, column);
+            if(column === 3) {
+              const tag = getDataAtCell(row, 'tag');
+              const payee = getDataAtCell(row, 'payee');
+              if (isDebit(tag, payee)) {
+                hotTable.current!.selectCell(row, 4);
+              }
+            }
+          }}
           afterChange={(changes, source) => {
             try {
               if (source == 'edit' && changes) {
@@ -544,9 +663,6 @@ export default function Checkbook(props : any) {
           ]}
           stretchH="all"
           contextMenu={{
-            callback : (key, selection, clickEvent) => {
-              console.log(key, selection, clickEvent);
-            },
             items : {
               'addMemo' : {
                 name : () => 'Set Memo',

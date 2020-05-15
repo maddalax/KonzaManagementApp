@@ -1,7 +1,7 @@
 {
   "name": "konza-pizza-management",
   "productName": "Konza Pizza Management",
-  "version": "1.1.1",
+  "version": "1.1.9",
   "description": "Konza Pizza Management",
   "main": "./main.prod.js",
   "author": {

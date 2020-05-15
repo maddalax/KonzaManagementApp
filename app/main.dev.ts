@@ -8,13 +8,12 @@
  * When running `yarn build` or `yarn build-main`, this file is compiled to
  * `./app/main.prod.js` using webpack. This gives us some performance wins.
  */
-import {app, BrowserWindow} from 'electron';
+import {app, BrowserWindow, dialog} from 'electron';
 import {autoUpdater} from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import {dispatchToWindow, Event, EventMap} from "./events/events";
 import {ServiceRegistry} from "./services/infrastructure/serviceRegistry";
-
 
 const { ipcMain } = require('electron')
 
@@ -69,25 +68,53 @@ const createWindow = async () => {
   });
 
   autoUpdater.on('checking-for-update', () => {
-    console.log('Checking for update...');
+    console.log('Checking for update.');
   })
   autoUpdater.on('update-available', (info) => {
-    console.log('Update available.', info);
+    const dialogOpts = {
+      type: 'info',
+      buttons: ['OK'],
+      title: `Konza Pizza Manager v${info.version}`,
+      message: 'An update is available, please press OK to apply new update.',
+    }
+    dialog.showMessageBox(dialogOpts);
   })
+
   autoUpdater.on('update-not-available', (info) => {
     console.log('Update not available.', info);
   })
+
   autoUpdater.on('error', (err) => {
+    const dialogOpts = {
+      type: 'error',
+      buttons: ['OK'],
+      title: `Auto Updater Failed `,
+      message: 'Please restart the application. If this continues to happen, just close the dialog and ignore.',
+      detail : err.toString()
+    }
+    dialog.showMessageBox(dialogOpts);
     console.log('Error in auto-updater. ' + err);
   })
+
   autoUpdater.on('download-progress', (progressObj) => {
     let log_message = "Download speed: " + progressObj.bytesPerSecond;
     log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
     log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
     console.log(log_message);
   })
+
   autoUpdater.on('update-downloaded', (info) => {
-    console.log('Update downloaded', info);
+    const dialogOpts = {
+      type: 'info',
+      buttons: ['OK'],
+      title: `Konza Pizza Manager v${info.version}`,
+      message: 'Update has been successfully downloaded, press OK to update and restart.',
+    }
+    dialog.showMessageBox(dialogOpts).then((returnValue) => {
+      if (returnValue.response === 0) {
+        autoUpdater.quitAndInstall(false, true);
+      }
+    })
   });
 
   mainWindow.loadURL(`file://${__dirname}/app.html`);
@@ -152,9 +179,6 @@ listeners.forEach(e => {
     }
   })
 });
-
-
-
 
 app.on('ready', createWindow);
 
