@@ -1,7 +1,7 @@
 {
   "name": "konza-pizza-management",
   "productName": "Konza Pizza Management",
-  "version": "1.1.9",
+  "version": "1.2.0",
   "description": "Konza Pizza Management",
   "scripts": {
     "build": "concurrently \"yarn build-main\" \"yarn build-renderer\"",
