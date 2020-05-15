@@ -10,6 +10,8 @@ import { ImportBankStatement } from '../components/ImportBankStatement';
 import { ImportPayrollStatement } from '../components/ImportPayrollStatement';
 import { ImportedPayrollStatements } from '../components/ImportedPayrollStatements';
 import { ErrorBoundary } from './ErrorBoundary';
+import {currentTimestamp} from "../utils/dateUtil";
+import {uuid} from "uuidv4";
 
 const Root =() => {
 
@@ -28,12 +30,12 @@ const Root =() => {
           </div>
           <div className="column">
             <Route path={"/"} exact component={HomePage} />
-            <Route path={"/checkbook"} exact component={CheckbookAccounts} />
+            <Route path={"/checkbook"} exact component={(props: any ) => <CheckbookAccounts timestamp={currentTimestamp()} {...props} key={uuid()}/>} />
             <Route path={"/checkbook/:id"} exact component={Checkbook} />
-            <Route path={"/import"} exact component={ImportMoneyFile} />
-            <Route path={"/import/bank"} exact component={ImportBankStatement} />
-            <Route path={"/import/payroll"} exact component={ImportPayrollStatement} />
-            <Route path={"/payroll/list"} exact component={ImportedPayrollStatements} />
+            <Route path={"/import"} exact component={(props : any) => <ImportMoneyFile {...props} key={uuid()}/>} />
+            <Route path={"/import/bank"} exact component={(props : any) => <ImportBankStatement {...props} key={uuid()}/>} />
+            <Route path={"/import/payroll"} exact component={(props : any) => <ImportPayrollStatement timestamp={currentTimestamp()} {...props} key={uuid()}/>} />
+            <Route path={"/payroll/list"} exact component={(props : any) => <ImportedPayrollStatements {...props} key={uuid()}/>} />
           </div>
         </div>
         </ErrorBoundary>

@@ -645,7 +645,10 @@ export default function Checkbook(props : any) {
                 });
               }
             } catch (e) {
-              ErrorBoundary.showErrorModal(e);
+              toastr.error(`${e.message || e.toString()}`, `An error has occurred when saving.`, {
+                timeOut : 8000,
+                "closeButton": true,
+              })
             }
           }}
           columns={[
