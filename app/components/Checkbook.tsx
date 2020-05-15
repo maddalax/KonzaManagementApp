@@ -124,21 +124,21 @@ export default function Checkbook(props : any) {
       if(entry.tag && isNaN(parseFloat(entry.tag))) {
         if (!tags[entry.tag]) {
           tags[entry.tag] = 1;
-          tagIsDebitRef.current[entry.payee] = entry.debit < 0 ? 1 : -1
+          tagIsDebitRef.current[entry.payee.toLowerCase().trim()] = entry.debit < 0 ? 1 : -1
 
         } else {
           tags[entry.tag] += 1;
-          tagIsDebitRef.current[entry.payee] += entry.debit < 0 ? 1 : -1
+          tagIsDebitRef.current[entry.payee.toLowerCase().trim()] += entry.debit < 0 ? 1 : -1
         }
       }
 
       if(entry.payee) {
         if (!payees[entry.payee]) {
           payees[entry.payee] = 1;
-          payeeIsDebitRef.current[entry.payee] = entry.debit < 0 ? 1 : -1
+          payeeIsDebitRef.current[entry.payee.toLowerCase().trim()] = entry.debit < 0 ? 1 : -1
         } else {
           payees[entry.payee] += 1;
-          payeeIsDebitRef.current[entry.payee] += entry.debit < 0 ? 1 : -1
+          payeeIsDebitRef.current[entry.payee.toLowerCase().trim()] += entry.debit < 0 ? 1 : -1
         }
       }
 
@@ -346,21 +346,21 @@ export default function Checkbook(props : any) {
         if(s.tag && isNaN(parseFloat(s.tag))) {
           if (!tags[s.tag]) {
             tags[s.tag] = 1;
-            tagIsDebitRef.current[s.payee] = s.debit < 0 ? 1 : -1
+            tagIsDebitRef.current[s.payee.toLowerCase().trim()] = s.debit < 0 ? 1 : -1
           } else {
             tags[s.tag] += 1;
-            tagIsDebitRef.current[s.payee] += s.debit < 0 ? 1 : -1
+            tagIsDebitRef.current[s.payee.toLowerCase().trim()] += s.debit < 0 ? 1 : -1
           }
         }
 
         if(s.payee) {
           if (!payees[s.payee]) {
             payees[s.payee] = 1;
-            payeeIsDebitRef.current[s.payee] = s.debit < 0 ? 1 : -1
+            payeeIsDebitRef.current[s.payee.toLowerCase().trim()] = s.debit < 0 ? 1 : -1
 
           } else {
             payees[s.payee] += 1;
-            payeeIsDebitRef.current[s.payee] += s.debit < 0 ? 1 : -1
+            payeeIsDebitRef.current[s.payee.toLowerCase().trim()] += s.debit < 0 ? 1 : -1
 
           }
         }
