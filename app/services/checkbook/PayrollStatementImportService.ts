@@ -17,14 +17,13 @@ export class PayrollStatementImportService {
 
   public async save(statement : PayrollParseResult) {
     const storage = await this.storage.get(Storage.PayrollStatements);
-    const exists = await this.storage.findOne(storage, {date : statement.date});
+    const exists = await this.storage.findOne(storage, {name : statement.name, date : statement.date});
     if(exists) {
       await new Promise((res, rej) => {
-        storage.update({date : statement.date}, statement, {}, (err, docs) => {
+        storage.update({name : statement.name, date : statement.date}, statement, {}, (err, docs) => {
           if(err) {
             return rej(err);
           }
-          console.log(docs);
           return res(docs);
         });
       })
