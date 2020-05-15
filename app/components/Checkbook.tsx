@@ -8,7 +8,6 @@ import {useDebouncedCallback} from 'use-debounce';
 import {currentDate, currentTimestamp, formatDate, parseDate, timestamp} from '../utils/dateUtil';
 import {getFloatOrZero} from '../utils/checkbookUtil';
 import {showModal} from "./Modal";
-import { ErrorBoundary } from '../containers/ErrorBoundary';
 import toastr from 'toastr';
 
 
@@ -93,6 +92,7 @@ export default function Checkbook(props : any) {
   }, 200)
 
   const onAmountChange = (setSelection : boolean) => {
+    sortedValues.current = [];
     loadEntriesCallback(setSelection);
   };
 
@@ -276,30 +276,32 @@ export default function Checkbook(props : any) {
       hotTable.current!.selectCell(change.row, 5);
     }
 
-    dispatchEntryUpdate();
-
     const tag = getDataAtCell(change.row, 'tag');
     const payee = getDataAtCell(change.row, 'payee');
     const debit = isDebit(tag, payee);
+    const payeeDebitCount = payeeIsDebitRef.current[payee];
+    const tagDebitCount = tagIsDebitRef.current[tag];
     let errored = false;
-    if(debit && change.column === 'credit' && change.newValue != 0) {
-      toastr.error(`You entered a credit for a payee or tag that is usually a debit. Please make sure this is correct.`, `Ensure Credit Change For Row ${change.row}`, {
+    if(debit && change.column === 'credit' && change.newValue != 0 && (payeeDebitCount != 0 || tagDebitCount != 0)) {
+      toastr.error(`You entered a credit for a payee or tag that is usually a debit. Please make sure this is correct.`, `Ensure Credit Change For Row ${change.row === 0 ? 1 : change.row}`, {
         timeOut : 0,
         "closeButton": true,
       })
       errored = true;
     }
-    else if(!debit && change.column === 'debit' && change.newValue != 0) {
-      toastr.error(`You entered a debit for a payee or tag that is usually a credit. Please make sure this is correct.`, `Ensure Debit Change For Row ${change.row}`, {
+    else if(!debit && change.column === 'debit' && change.newValue != 0 && (payeeDebitCount != 0 || tagDebitCount != 0)) {
+      toastr.error(`You entered a debit for a payee or tag that is usually a credit. Please make sure this is correct.`, `Ensure Debit Change For Row ${change.row === 0 ? 1 : change.row}`, {
         timeOut : 0,
         "closeButton": true,
       })
       errored = true;
     }
 
+    dispatchEntryUpdate();
+
+
     // Re-calculate balance due to date being changed.
     if(change.column === 'date' && (entry.credit || entry.debit)) {
-      sortedValues.current = [];
       onAmountChange(false);
     }
     else if(change.column === "credit") {
@@ -532,6 +534,9 @@ export default function Checkbook(props : any) {
     // Iterate last 10 values to try to find match and check debit.
     for(let i = 0; i < 10; i++) {
       const val = sortedValues.current[i];
+      if(!val) {
+        continue;
+      }
       if(tag && val.tag === tag) {
         return val.debit < 0;
       }
@@ -645,6 +650,7 @@ export default function Checkbook(props : any) {
                 });
               }
             } catch (e) {
+              console.error(e);
               toastr.error(`${e.message || e.toString()}`, `An error has occurred when saving.`, {
                 timeOut : 8000,
                 "closeButton": true,

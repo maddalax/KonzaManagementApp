@@ -30,7 +30,9 @@ export function currentDate() {
 }
 
 export function currentTimestamp() {
-  return getTime(Date.now());
+  const stamp = Date.now();
+  console.trace('STAMP', stamp)
+  return stamp;
 }
 
 export function parseDate(value: string) {
