@@ -12,7 +12,6 @@ export function formatDate(time: number | string | Date): string {
   if (typeof time === 'string') {
     time = timestamp(time);
   }
-  console.log('formatting', time);
   return format(
     time,
     'MM/dd/yyyy'
@@ -70,7 +69,6 @@ export function parseDate(value: string) {
     if (value.length === 4) {
       const month = parseInt(`${value[0]}${value[1]}`);
       const date = parseInt(value[3]);
-      console.log(`${year}-${month}-${date}`);
       const parsed = stringToDate(`${year}-${month}-${date}`)
       return formatDate(parsed);
     }
@@ -114,7 +112,6 @@ export function parseDateNoSlashes(value : string) {
     }
     let month = monthLength === 1 ? value[0] : value[0] + value[1];
     let date = monthLength === 1 ? value[1] + value[2] : value[2];
-    console.log(`${year}-${month}-${date}`)
     const parsed = stringToDate(`${year}-${month}-${date}`)
     return formatDate(parsed);
   }

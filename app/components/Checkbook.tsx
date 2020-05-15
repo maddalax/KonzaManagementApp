@@ -482,10 +482,11 @@ export default function Checkbook(props : any) {
   const [removeRows] = useDebouncedCallback(() => {
     const rows : Set<number> = new Set<number>();
     const selected = hotTable.current!.getSelected()!;
+    console.log(selected);
     selected.forEach((s) => {
-      const start = s[0];
-      const end = s[2];
-      for(let i = start; i <= end; i++) {
+      let start = s[0];
+      let end = s[2];
+      for(let i = (start > end ? end : start); i <= (start > end ? start : end); i++) {
         rows.add(i);
       }
     })
