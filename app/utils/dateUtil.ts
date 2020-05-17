@@ -31,7 +31,6 @@ export function currentDate() {
 
 export function currentTimestamp() {
   const stamp = Date.now();
-  console.trace('STAMP', stamp)
   return stamp;
 }
 
