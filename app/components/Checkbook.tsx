@@ -402,12 +402,6 @@ export default function Checkbook(props : any) {
       }
       if(rowId != -1) {
         setDataAtCell(rowId, 'balance', balance);
-        if(entry.credit) {
-          hotTable.current!.setDataAtCell(rowId, hotTable.current!.propToCol('debit'), '');
-        } else {
-          hotTable.current!.setDataAtCell(rowId, hotTable.current!.propToCol('credit'), '');
-        }
-
       }
       loadAutoCompletes(tags, payees);
     }, 100)
