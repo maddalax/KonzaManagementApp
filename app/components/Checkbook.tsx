@@ -124,11 +124,11 @@ export default function Checkbook(props : any) {
       if(entry.tag && isNaN(parseFloat(entry.tag))) {
         if (!tags[entry.tag]) {
           tags[entry.tag] = 1;
-          tagIsDebitRef.current[entry.payee.toLowerCase().trim()] = entry.debit < 0 ? 1 : -1
+          tagIsDebitRef.current[entry.tag.toLowerCase().trim()] = entry.debit < 0 ? 1 : -1
 
         } else {
           tags[entry.tag] += 1;
-          tagIsDebitRef.current[entry.payee.toLowerCase().trim()] += entry.debit < 0 ? 1 : -1
+          tagIsDebitRef.current[entry.tag.toLowerCase().trim()] += entry.debit < 0 ? 1 : -1
         }
       }
 
@@ -245,6 +245,11 @@ export default function Checkbook(props : any) {
       return;
     }
 
+    if(change.newValue === '') {
+      console.log('empty', change.newValue)
+      return;
+    }
+
     changedRowId.current = change.rowId;
 
     if (!entriesRef.current[change.rowId]) {
@@ -276,29 +281,50 @@ export default function Checkbook(props : any) {
       hotTable.current!.selectCell(change.row, 5);
     }
 
-    const tag = getDataAtCell(change.row, 'tag');
-    const payee = getDataAtCell(change.row, 'payee');
-    const debit = isDebit(tag, payee);
-    const payeeDebitCount = payeeIsDebitRef.current[payee];
-    const tagDebitCount = tagIsDebitRef.current[tag];
+    const debit = isDebit(entry.tag, entry.payee);
+
+    const payeeDebitCount = entry.payee ? payeeIsDebitRef.current[entry.payee.toLowerCase().trim()] : undefined;
+    const tagDebitCount = entry.tag ? tagIsDebitRef.current[entry.tag.toLowerCase().trim()] : undefined;
+
     let errored = false;
-    if(debit && change.column === 'credit' && change.newValue != 0 && (payeeDebitCount != 0 || tagDebitCount != 0)) {
+    if(debit && change.column === 'credit' && change.newValue != 0 && ((payeeDebitCount && payeeDebitCount != 0) || (tagDebitCount && tagDebitCount != 0))) {
       toastr.error(`You entered a credit for a payee or tag that is usually a debit. Please make sure this is correct.`, `Ensure Credit Change For Row ${change.row === 0 ? 1 : change.row}`, {
-        timeOut : 0,
+        timeOut : '15000',
         "closeButton": true,
       })
       errored = true;
     }
-    else if(!debit && change.column === 'debit' && change.newValue != 0 && (payeeDebitCount != 0 || tagDebitCount != 0)) {
+    else if(!debit && change.column === 'debit' && change.newValue != 0 && ((payeeDebitCount && payeeDebitCount != 0) || (tagDebitCount && tagDebitCount != 0))) {
       toastr.error(`You entered a debit for a payee or tag that is usually a credit. Please make sure this is correct.`, `Ensure Debit Change For Row ${change.row === 0 ? 1 : change.row}`, {
-        timeOut : 0,
+        timeOut : '15000',
         "closeButton": true,
       })
       errored = true;
+    }
+
+    if(change.column === 'credit' && entry.credit === 0) {
+      delete entry.credit;
+      entriesRef.current[change.rowId] = entry;
+      return;
+    }
+
+    if(change.column === 'debit' && entry.debit === 0) {
+      delete entry.debit;
+      entriesRef.current[change.rowId] = entry;
+      return;
+    }
+
+    if(entry.credit) {
+      delete entry.debit;
+      entriesRef.current[change.rowId] = entry;
+    }
+
+    if(entry.debit) {
+      delete entry.credit;
+      entriesRef.current[change.rowId] = entry;
     }
 
     dispatchEntryUpdate();
-
 
     // Re-calculate balance due to date being changed.
     if(change.column === 'date' && (entry.credit || entry.debit)) {
@@ -346,10 +372,10 @@ export default function Checkbook(props : any) {
         if(s.tag && isNaN(parseFloat(s.tag))) {
           if (!tags[s.tag]) {
             tags[s.tag] = 1;
-            tagIsDebitRef.current[s.payee.toLowerCase().trim()] = s.debit < 0 ? 1 : -1
+            tagIsDebitRef.current[s.tag.toLowerCase().trim()] = s.debit < 0 ? 1 : -1
           } else {
             tags[s.tag] += 1;
-            tagIsDebitRef.current[s.payee.toLowerCase().trim()] += s.debit < 0 ? 1 : -1
+            tagIsDebitRef.current[s.tag.toLowerCase().trim()] += s.debit < 0 ? 1 : -1
           }
         }
 
@@ -376,6 +402,12 @@ export default function Checkbook(props : any) {
       }
       if(rowId != -1) {
         setDataAtCell(rowId, 'balance', balance);
+        if(entry.credit) {
+          hotTable.current!.setDataAtCell(rowId, hotTable.current!.propToCol('debit'), '');
+        } else {
+          hotTable.current!.setDataAtCell(rowId, hotTable.current!.propToCol('credit'), '');
+        }
+
       }
       loadAutoCompletes(tags, payees);
     }, 100)
@@ -677,7 +709,8 @@ export default function Checkbook(props : any) {
               numericFormat: {
                 pattern: '$0,0.00',
                 culture: 'en-US' // this is the default culture, set up for USD
-              }
+              },
+              allowEmpty: true
             },
             {
               data: 'debit',
@@ -685,7 +718,8 @@ export default function Checkbook(props : any) {
               numericFormat: {
                 pattern: '$0,0.00',
                 culture: 'en-US' // this is the default culture, set up for USD
-              }
+              },
+              allowEmpty: true
             },
             {data: 'balance', type: 'numeric', readOnly: true, numericFormat: {
                 pattern: '$0,0.00',

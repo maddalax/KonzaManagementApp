@@ -148,14 +148,23 @@ export const ImportPayrollStatement = (props: any) => {
       if(!compare) {
         return;
       }
+      const allNames = new Set<string>();
       const namesLast = new Set(compare.employees.map(w => w.name.trim().toLowerCase()));
-      const names = new Set(statement.employees.map(w => w.name.trim().toLowerCase()))
+      const names = new Set(statement.employees.map(w => w.name.trim().toLowerCase()));
+
+      namesLast.forEach(n => allNames.add(n));
+      names.forEach(n => allNames.add(n));
+
       const missing = new Set<string>();
-      namesLast.forEach(name => {
-        if(!names.has(name)) {
-          missing.add(name);
+
+      allNames.forEach(a => {
+        if(!names.has(a)) {
+          missing.add(a);
         }
-      });
+        if(!namesLast.has(a)) {
+          missing.add(a)
+        }
+      })
       missingNames.current = Array.from(missing);
     }
 
