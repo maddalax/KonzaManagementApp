@@ -24,9 +24,10 @@ export const ImportPayrollStatement = (props: any) => {
     const [didExportMoney, setDidExportMoney] = useState(false);
     const [date, setDate] = useState('');
     const [name, setName] = useState('');
-    const missingNames = useRef<string[]>([])
+    const onNewNotOld = useRef<string[]>([])
+    const onOldNotNew = useRef<string[]>([])
 
-    useEffect(() => {
+  useEffect(() => {
       registerRendererOnce(Event.AllCheckbookAccounts, (_, args: any[]) => {
         setAccounts(args[0]);
         setAccount(args[0][0]);
@@ -72,7 +73,7 @@ export const ImportPayrollStatement = (props: any) => {
           <ImportedPayrollStatements isModal={true} onSelection={(e) => {
             console.log(e);
             compareAgainstLast(parsed.current!, e);
-            if(missingNames.current.length > 0) {
+            if(onOldNotNew.current.length > 0 || onNewNotOld.current.length > 0) {
               showMissingNamesModal();
             }
             else {
@@ -93,12 +94,17 @@ export const ImportPayrollStatement = (props: any) => {
         onSave(_): Promise<any> {
           return Promise.resolve();
         },
-        title : `Found ${missingNames.current.length} names that are not on new payroll.`,
+        title : `Payroll Comparison`,
         body : <div>
-          <p>Verify the following employees are still employed:</p>
-          {missingNames.current.map(n => {
+          {onOldNotNew.current.length > 0 && <div><h2>Employees on old payroll but not new uploaded payroll.</h2>
+          {onOldNotNew.current.map(n => {
             return <p>Name: <strong>{n}</strong></p>
-          })}
+          })}</div>}
+          <br/>
+          {onNewNotOld.current.length > 0 && <div><h2>Employees on new uploaded payroll but not old payroll.</h2>
+          {onNewNotOld.current.map(n => {
+            return <p>Name: <strong>{n}</strong></p>
+          })}</div>}
         </div>
       })
     };
@@ -155,17 +161,21 @@ export const ImportPayrollStatement = (props: any) => {
       namesLast.forEach(n => allNames.add(n));
       names.forEach(n => allNames.add(n));
 
-      const missing = new Set<string>();
+      const onNewNotLast = new Set<string>();
+      const onLastNotNew = new Set<string>();
 
       allNames.forEach(a => {
-        if(!names.has(a)) {
-          missing.add(a);
+        if(names.has(a) && !namesLast.has(a)) {
+          onNewNotLast.add(a);
         }
-        if(!namesLast.has(a)) {
-          missing.add(a)
+        if(!names.has(a) && namesLast.has(a)) {
+          onLastNotNew.add(a);
         }
-      })
-      missingNames.current = Array.from(missing);
+      });
+
+
+      onNewNotOld.current = Array.from(onNewNotLast);
+      onOldNotNew.current = Array.from(onLastNotNew);
     }
 
     if (didExportMoney) {
