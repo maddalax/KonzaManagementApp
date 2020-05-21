@@ -4,7 +4,7 @@ import Handsontable from "handsontable";
 import ReactDOMServer from 'react-dom/server';
 import {CheckbookAccount} from "../entities/checkbook/CheckbookAccount";
 import {uuid} from "uuidv4";
-import { currentDate, currentTimestamp, formatDate } from '../utils/dateUtil';
+import { currentDate, currentTimestamp } from '../utils/dateUtil';
 import {dispatch, Event, registerRendererOnce} from "../events/events";
 
 const { dialog } = require('electron').remote

@@ -34,10 +34,6 @@ export const Modal = (props : ModalProps) => {
     })
   }
 
-  useEffect(() => {
-    console.log('input values', inputValues);
-  }, [inputValues])
-
   const onSave = async () => {
     props.onSave && await props.onSave(inputValues);
   };
